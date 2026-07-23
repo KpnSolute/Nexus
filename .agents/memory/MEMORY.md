@@ -1,0 +1,3 @@
+- [Orval path+query param collision](orval-path-query-collision.md) — operations with BOTH path params AND query params cause TS2308 collision; fix by moving query params to path params or removing them.
+- [bcrypt native builds on Replit](bcrypt-native.md) — bcrypt requires native build approval (pnpm approve-builds); use bcryptjs instead for zero-friction pure-JS password hashing.
+- [WebSocket proxy routing](ws-proxy-routing.md) — /ws must be added to the API server artifact.toml paths array or the proxy silently drops WebSocket connections.

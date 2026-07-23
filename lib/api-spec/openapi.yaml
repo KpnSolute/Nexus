@@ -3,20 +3,33 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Trading Terminal API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication
+  - name: markets
+    description: Market data
+  - name: watchlist
+    description: User watchlist
+  - name: trades
+    description: Trade management
+  - name: portfolio
+    description: Portfolio overview
+  - name: accounts
+    description: Connected trading accounts
+  - name: settings
+    description: User settings
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +37,762 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthCredentials"
+      responses:
+        "201":
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Username taken
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthCredentials"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /markets:
+    get:
+      operationId: listMarkets
+      tags: [markets]
+      summary: List available markets
+      responses:
+        "200":
+          description: Markets list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Market"
+
+  /markets/trending:
+    get:
+      operationId: getTrendingMarkets
+      tags: [markets]
+      summary: Get trending markets
+      responses:
+        "200":
+          description: Trending markets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MarketTicker"
+
+  /markets/{symbol}/ticker:
+    get:
+      operationId: getMarketTicker
+      tags: [markets]
+      summary: Get current ticker for a symbol
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Ticker data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarketTicker"
+        "404":
+          description: Market not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /markets/{symbol}/candles/{interval}:
+    get:
+      operationId: getMarketCandles
+      tags: [markets]
+      summary: Get OHLCV candlestick data
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: interval
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [1m, 5m, 15m, 1h, 4h, 1d]
+      responses:
+        "200":
+          description: Candle data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Candle"
+        "404":
+          description: Market not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /markets/{symbol}/signals:
+    get:
+      operationId: getMarketSignals
+      tags: [markets]
+      summary: Get trading signals for a symbol
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Signal analysis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarketSignal"
+        "404":
+          description: Market not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /watchlist:
+    get:
+      operationId: getWatchlist
+      tags: [watchlist]
+      summary: Get user watchlist
+      responses:
+        "200":
+          description: Watchlist
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WatchlistItem"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: addToWatchlist
+      tags: [watchlist]
+      summary: Add market to watchlist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WatchlistInput"
+      responses:
+        "201":
+          description: Added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WatchlistItem"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /watchlist/{symbol}:
+    delete:
+      operationId: removeFromWatchlist
+      tags: [watchlist]
+      summary: Remove market from watchlist
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Removed
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /trades:
+    get:
+      operationId: listTrades
+      tags: [trades]
+      summary: List user trades
+      responses:
+        "200":
+          description: Trades
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Trade"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createTrade
+      tags: [trades]
+      summary: Place a trade
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TradeInput"
+      responses:
+        "201":
+          description: Trade placed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Trade"
+        "400":
+          description: Invalid trade
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /trades/{id}:
+    get:
+      operationId: getTrade
+      tags: [trades]
+      summary: Get a trade
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Trade
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Trade"
+        "404":
+          description: Trade not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /portfolio/summary:
+    get:
+      operationId: getPortfolioSummary
+      tags: [portfolio]
+      summary: Get portfolio overview with PnL
+      responses:
+        "200":
+          description: Portfolio summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PortfolioSummary"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /portfolio/positions:
+    get:
+      operationId: listPositions
+      tags: [portfolio]
+      summary: List open positions
+      responses:
+        "200":
+          description: Positions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Position"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /accounts:
+    get:
+      operationId: listAccounts
+      tags: [accounts]
+      summary: List connected trading accounts
+      responses:
+        "200":
+          description: Accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TradingAccount"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: connectAccount
+      tags: [accounts]
+      summary: Connect a trading account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountInput"
+      responses:
+        "201":
+          description: Account connected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TradingAccount"
+        "400":
+          description: Invalid account details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /accounts/{id}:
+    delete:
+      operationId: disconnectAccount
+      tags: [accounts]
+      summary: Disconnect a trading account
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Disconnected
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /settings/trading-mode:
+    patch:
+      operationId: updateTradingMode
+      tags: [settings]
+      summary: Toggle paper or real trading mode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TradingModeInput"
+      responses:
+        "200":
+          description: Mode updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
         status:
           type: string
-      required:
-        - status
 
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    AuthCredentials:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          minLength: 3
+        password:
+          type: string
+          minLength: 6
+
+    AuthUser:
+      type: object
+      required: [id, username, tradingMode, createdAt]
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        tradingMode:
+          type: string
+          enum: [paper, real]
+        createdAt:
+          type: string
+          format: date-time
+
+    Market:
+      type: object
+      required: [symbol, name, exchange, type]
+      properties:
+        symbol:
+          type: string
+        name:
+          type: string
+        exchange:
+          type: string
+        type:
+          type: string
+          enum: [crypto, stock, forex]
+
+    MarketTicker:
+      type: object
+      required: [symbol, price, change24h, changePct24h, volume24h, high24h, low24h, updatedAt]
+      properties:
+        symbol:
+          type: string
+        price:
+          type: number
+        change24h:
+          type: number
+        changePct24h:
+          type: number
+        volume24h:
+          type: number
+        high24h:
+          type: number
+        low24h:
+          type: number
+        marketCap:
+          type: ["number", "null"]
+        updatedAt:
+          type: string
+          format: date-time
+
+    Candle:
+      type: object
+      required: [time, open, high, low, close, volume]
+      properties:
+        time:
+          type: integer
+          description: Unix timestamp in seconds
+        open:
+          type: number
+        high:
+          type: number
+        low:
+          type: number
+        close:
+          type: number
+        volume:
+          type: number
+
+    MarketSignal:
+      type: object
+      required: [symbol, signal, strength, rsi, macd, trend, updatedAt]
+      properties:
+        symbol:
+          type: string
+        signal:
+          type: string
+          enum: [strong_buy, buy, neutral, sell, strong_sell]
+        strength:
+          type: number
+          description: Signal confidence 0-100
+        rsi:
+          type: number
+        macd:
+          type: number
+        trend:
+          type: string
+          enum: [bullish, bearish, sideways]
+        supportLevel:
+          type: ["number", "null"]
+        resistanceLevel:
+          type: ["number", "null"]
+        updatedAt:
+          type: string
+          format: date-time
+
+    WatchlistItem:
+      type: object
+      required: [id, userId, symbol, addedAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        symbol:
+          type: string
+        addedAt:
+          type: string
+          format: date-time
+
+    WatchlistInput:
+      type: object
+      required: [symbol]
+      properties:
+        symbol:
+          type: string
+
+    Trade:
+      type: object
+      required: [id, userId, symbol, side, quantity, price, status, mode, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        symbol:
+          type: string
+        side:
+          type: string
+          enum: [buy, sell]
+        quantity:
+          type: number
+        price:
+          type: number
+        total:
+          type: ["number", "null"]
+        status:
+          type: string
+          enum: [pending, filled, cancelled]
+        mode:
+          type: string
+          enum: [paper, real]
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        filledAt:
+          type: ["string", "null"]
+          format: date-time
+
+    TradeInput:
+      type: object
+      required: [symbol, side, quantity]
+      properties:
+        symbol:
+          type: string
+        side:
+          type: string
+          enum: [buy, sell]
+        quantity:
+          type: number
+        price:
+          type: ["number", "null"]
+        notes:
+          type: ["string", "null"]
+
+    Position:
+      type: object
+      required: [symbol, quantity, avgEntryPrice, currentPrice, pnl, pnlPct, mode]
+      properties:
+        symbol:
+          type: string
+        quantity:
+          type: number
+        avgEntryPrice:
+          type: number
+        currentPrice:
+          type: number
+        pnl:
+          type: number
+        pnlPct:
+          type: number
+        mode:
+          type: string
+          enum: [paper, real]
+
+    PortfolioSummary:
+      type: object
+      required: [totalValue, totalPnl, totalPnlPct, openPositions, totalTrades, winRate, mode]
+      properties:
+        totalValue:
+          type: number
+        totalPnl:
+          type: number
+        totalPnlPct:
+          type: number
+        openPositions:
+          type: integer
+        totalTrades:
+          type: integer
+        winRate:
+          type: number
+        bestTrade:
+          type: ["string", "null"]
+        worstTrade:
+          type: ["string", "null"]
+        mode:
+          type: string
+          enum: [paper, real]
+
+    TradingAccount:
+      type: object
+      required: [id, userId, exchange, label, status, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        exchange:
+          type: string
+        label:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive, error]
+        balance:
+          type: ["number", "null"]
+        createdAt:
+          type: string
+          format: date-time
+
+    AccountInput:
+      type: object
+      required: [exchange, label, apiKey, apiSecret]
+      properties:
+        exchange:
+          type: string
+        label:
+          type: string
+        apiKey:
+          type: string
+        apiSecret:
+          type: string
+
+    TradingModeInput:
+      type: object
+      required: [mode]
+      properties:
+        mode:
+          type: string
+          enum: [paper, real]
