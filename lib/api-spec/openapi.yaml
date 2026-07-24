@@ -24,6 +24,8 @@ tags:
     description: Connected trading accounts
   - name: settings
     description: User settings
+  - name: alpaca
+    description: Alpaca brokerage integration
 paths:
   /healthz:
     get:
@@ -490,6 +492,147 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /alpaca/account:
+    get:
+      operationId: getAlpacaAccount
+      tags: [alpaca]
+      summary: Get connected Alpaca account info (equity, buying power, cash)
+      responses:
+        "200":
+          description: Alpaca account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlpacaAccount"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: No Alpaca account connected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /alpaca/positions:
+    get:
+      operationId: listAlpacaPositions
+      tags: [alpaca]
+      summary: Get real open positions from Alpaca
+      responses:
+        "200":
+          description: Positions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AlpacaPosition"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: No Alpaca account connected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /alpaca/orders:
+    get:
+      operationId: listAlpacaOrders
+      tags: [alpaca]
+      summary: Get real order history from Alpaca
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AlpacaOrder"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: No Alpaca account connected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: placeAlpacaOrder
+      tags: [alpaca]
+      summary: Place a real order through Alpaca
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AlpacaOrderInput"
+      responses:
+        "201":
+          description: Order placed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlpacaOrder"
+        "400":
+          description: Order failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /alpaca/orders/{orderId}:
+    delete:
+      operationId: cancelAlpacaOrder
+      tags: [alpaca]
+      summary: Cancel an open Alpaca order
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Order cancelled
+        "400":
+          description: Cancel failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /settings/trading-mode:
     patch:
       operationId: updateTradingMode
@@ -767,6 +910,9 @@ components:
           type: string
         label:
           type: string
+        mode:
+          type: string
+          enum: [paper, live]
         status:
           type: string
           enum: [active, inactive, error]
@@ -788,6 +934,122 @@ components:
           type: string
         apiSecret:
           type: string
+        mode:
+          type: string
+          enum: [paper, live]
+
+    AlpacaAccount:
+      type: object
+      required: [equity, cash, buyingPower, portfolioValue, currency, status, mode]
+      properties:
+        equity:
+          type: number
+        cash:
+          type: number
+        buyingPower:
+          type: number
+        portfolioValue:
+          type: number
+        currency:
+          type: string
+        status:
+          type: string
+        mode:
+          type: string
+          enum: [paper, live]
+        daytradeCount:
+          type: integer
+        patternDayTrader:
+          type: boolean
+
+    AlpacaPosition:
+      type: object
+      required: [symbol, side, qty, avgEntryPrice, currentPrice, marketValue, costBasis, unrealizedPl, unrealizedPlPct, changeToday]
+      properties:
+        symbol:
+          type: string
+        side:
+          type: string
+        qty:
+          type: number
+        avgEntryPrice:
+          type: number
+        currentPrice:
+          type: number
+        marketValue:
+          type: number
+        costBasis:
+          type: number
+        unrealizedPl:
+          type: number
+        unrealizedPlPct:
+          type: number
+        changeToday:
+          type: number
+
+    AlpacaOrder:
+      type: object
+      required: [id, symbol, side, type, qty, filledQty, status, submittedAt]
+      properties:
+        id:
+          type: string
+        symbol:
+          type: string
+        side:
+          type: string
+          enum: [buy, sell]
+        type:
+          type: string
+        qty:
+          type: number
+        filledQty:
+          type: number
+        filledAvgPrice:
+          type: ["number", "null"]
+        status:
+          type: string
+        timeInForce:
+          type: string
+        limitPrice:
+          type: ["number", "null"]
+        submittedAt:
+          type: string
+          format: date-time
+        filledAt:
+          type: ["string", "null"]
+          format: date-time
+        canceledAt:
+          type: ["string", "null"]
+          format: date-time
+
+    AlpacaOrderInput:
+      type: object
+      required: [symbol, side]
+      properties:
+        symbol:
+          type: string
+          description: "Our symbol (BTC-USDT) or Alpaca format (BTC/USD)"
+        side:
+          type: string
+          enum: [buy, sell]
+        qty:
+          type: number
+          description: "Quantity in asset units"
+        notional:
+          type: number
+          description: "Dollar amount to spend/receive (use instead of qty for fractional)"
+        type:
+          type: string
+          enum: [market, limit, stop, stop_limit]
+          default: market
+        time_in_force:
+          type: string
+          enum: [gtc, ioc, day]
+          default: gtc
+        limit_price:
+          type: number
+        stop_price:
+          type: number
 
     TradingModeInput:
       type: object

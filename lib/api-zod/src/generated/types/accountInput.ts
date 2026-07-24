@@ -5,10 +5,12 @@
  * Trading Terminal API
  * OpenAPI spec version: 0.1.0
  */
+import type { AccountInputMode } from './accountInputMode';
 
 export interface AccountInput {
   exchange: string;
   label: string;
   apiKey: string;
   apiSecret: string;
+  mode?: AccountInputMode;
 }

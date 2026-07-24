@@ -10,6 +10,7 @@ export const tradingAccountsTable = pgTable("trading_accounts", {
   label: text("label").notNull(),
   apiKey: text("api_key").notNull(),
   apiSecret: text("api_secret").notNull(),
+  mode: text("mode").notNull().default("paper"), // paper | live
   status: text("status").notNull().default("active"), // active | inactive | error
   balance: numeric("balance", { precision: 20, scale: 8 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

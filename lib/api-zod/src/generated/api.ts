@@ -313,6 +313,7 @@ export const ListAccountsResponseItem = zod.object({
   "userId": zod.number(),
   "exchange": zod.string(),
   "label": zod.string(),
+  "mode": zod.enum(['paper', 'live']).optional(),
   "status": zod.enum(['active', 'inactive', 'error']),
   "balance": zod.number().nullish(),
   "createdAt": zod.coerce.date()
@@ -327,7 +328,8 @@ export const ConnectAccountBody = zod.object({
   "exchange": zod.string(),
   "label": zod.string(),
   "apiKey": zod.string(),
-  "apiSecret": zod.string()
+  "apiSecret": zod.string(),
+  "mode": zod.enum(['paper', 'live']).optional()
 })
 
 export const ConnectAccountResponse = zod.object({
@@ -335,6 +337,7 @@ export const ConnectAccountResponse = zod.object({
   "userId": zod.number(),
   "exchange": zod.string(),
   "label": zod.string(),
+  "mode": zod.enum(['paper', 'live']).optional(),
   "status": zod.enum(['active', 'inactive', 'error']),
   "balance": zod.number().nullish(),
   "createdAt": zod.coerce.date()
@@ -349,6 +352,111 @@ export const DisconnectAccountParams = zod.object({
 })
 
 export const DisconnectAccountResponse = zod.void()
+
+
+/**
+ * @summary Get connected Alpaca account info (equity, buying power, cash)
+ */
+export const GetAlpacaAccountResponse = zod.object({
+  "equity": zod.number(),
+  "cash": zod.number(),
+  "buyingPower": zod.number(),
+  "portfolioValue": zod.number(),
+  "currency": zod.string(),
+  "status": zod.string(),
+  "mode": zod.enum(['paper', 'live']),
+  "daytradeCount": zod.number().optional(),
+  "patternDayTrader": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Get real open positions from Alpaca
+ */
+export const ListAlpacaPositionsResponseItem = zod.object({
+  "symbol": zod.string(),
+  "side": zod.string(),
+  "qty": zod.number(),
+  "avgEntryPrice": zod.number(),
+  "currentPrice": zod.number(),
+  "marketValue": zod.number(),
+  "costBasis": zod.number(),
+  "unrealizedPl": zod.number(),
+  "unrealizedPlPct": zod.number(),
+  "changeToday": zod.number()
+})
+export const ListAlpacaPositionsResponse = zod.array(ListAlpacaPositionsResponseItem)
+
+
+/**
+ * @summary Get real order history from Alpaca
+ */
+export const listAlpacaOrdersQueryLimitDefault = 50;
+
+export const ListAlpacaOrdersQueryParams = zod.object({
+  "limit": zod.coerce.number().default(listAlpacaOrdersQueryLimitDefault)
+})
+
+export const ListAlpacaOrdersResponseItem = zod.object({
+  "id": zod.string(),
+  "symbol": zod.string(),
+  "side": zod.enum(['buy', 'sell']),
+  "type": zod.string(),
+  "qty": zod.number(),
+  "filledQty": zod.number(),
+  "filledAvgPrice": zod.number().nullish(),
+  "status": zod.string(),
+  "timeInForce": zod.string().optional(),
+  "limitPrice": zod.number().nullish(),
+  "submittedAt": zod.coerce.date(),
+  "filledAt": zod.coerce.date().nullish(),
+  "canceledAt": zod.coerce.date().nullish()
+})
+export const ListAlpacaOrdersResponse = zod.array(ListAlpacaOrdersResponseItem)
+
+
+/**
+ * @summary Place a real order through Alpaca
+ */
+export const placeAlpacaOrderBodyTypeDefault = `market`;
+export const placeAlpacaOrderBodyTimeInForceDefault = `gtc`;
+
+export const PlaceAlpacaOrderBody = zod.object({
+  "symbol": zod.string().describe('Our symbol (BTC-USDT) or Alpaca format (BTC\/USD)'),
+  "side": zod.enum(['buy', 'sell']),
+  "qty": zod.number().optional().describe('Quantity in asset units'),
+  "notional": zod.number().optional().describe('Dollar amount to spend\/receive (use instead of qty for fractional)'),
+  "type": zod.enum(['market', 'limit', 'stop', 'stop_limit']).default(placeAlpacaOrderBodyTypeDefault),
+  "time_in_force": zod.enum(['gtc', 'ioc', 'day']).default(placeAlpacaOrderBodyTimeInForceDefault),
+  "limit_price": zod.number().optional(),
+  "stop_price": zod.number().optional()
+})
+
+export const PlaceAlpacaOrderResponse = zod.object({
+  "id": zod.string(),
+  "symbol": zod.string(),
+  "side": zod.enum(['buy', 'sell']),
+  "type": zod.string(),
+  "qty": zod.number(),
+  "filledQty": zod.number(),
+  "filledAvgPrice": zod.number().nullish(),
+  "status": zod.string(),
+  "timeInForce": zod.string().optional(),
+  "limitPrice": zod.number().nullish(),
+  "submittedAt": zod.coerce.date(),
+  "filledAt": zod.coerce.date().nullish(),
+  "canceledAt": zod.coerce.date().nullish()
+})
+
+
+/**
+ * @summary Cancel an open Alpaca order
+ */
+export const CancelAlpacaOrderParams = zod.object({
+  "orderId": zod.coerce.string()
+})
+
+export const CancelAlpacaOrderResponse = zod.void()
 
 
 /**

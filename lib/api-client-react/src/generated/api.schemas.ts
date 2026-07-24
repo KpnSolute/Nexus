@@ -221,6 +221,14 @@ export interface PortfolioSummary {
   mode: PortfolioSummaryMode;
 }
 
+export type TradingAccountMode = typeof TradingAccountMode[keyof typeof TradingAccountMode];
+
+
+export const TradingAccountMode = {
+  paper: 'paper',
+  live: 'live',
+} as const;
+
 export type TradingAccountStatus = typeof TradingAccountStatus[keyof typeof TradingAccountStatus];
 
 
@@ -235,17 +243,129 @@ export interface TradingAccount {
   userId: number;
   exchange: string;
   label: string;
+  mode?: TradingAccountMode;
   status: TradingAccountStatus;
   /** @nullable */
   balance?: number | null;
   createdAt: string;
 }
 
+export type AccountInputMode = typeof AccountInputMode[keyof typeof AccountInputMode];
+
+
+export const AccountInputMode = {
+  paper: 'paper',
+  live: 'live',
+} as const;
+
 export interface AccountInput {
   exchange: string;
   label: string;
   apiKey: string;
   apiSecret: string;
+  mode?: AccountInputMode;
+}
+
+export type AlpacaAccountMode = typeof AlpacaAccountMode[keyof typeof AlpacaAccountMode];
+
+
+export const AlpacaAccountMode = {
+  paper: 'paper',
+  live: 'live',
+} as const;
+
+export interface AlpacaAccount {
+  equity: number;
+  cash: number;
+  buyingPower: number;
+  portfolioValue: number;
+  currency: string;
+  status: string;
+  mode: AlpacaAccountMode;
+  daytradeCount?: number;
+  patternDayTrader?: boolean;
+}
+
+export interface AlpacaPosition {
+  symbol: string;
+  side: string;
+  qty: number;
+  avgEntryPrice: number;
+  currentPrice: number;
+  marketValue: number;
+  costBasis: number;
+  unrealizedPl: number;
+  unrealizedPlPct: number;
+  changeToday: number;
+}
+
+export type AlpacaOrderSide = typeof AlpacaOrderSide[keyof typeof AlpacaOrderSide];
+
+
+export const AlpacaOrderSide = {
+  buy: 'buy',
+  sell: 'sell',
+} as const;
+
+export interface AlpacaOrder {
+  id: string;
+  symbol: string;
+  side: AlpacaOrderSide;
+  type: string;
+  qty: number;
+  filledQty: number;
+  /** @nullable */
+  filledAvgPrice?: number | null;
+  status: string;
+  timeInForce?: string;
+  /** @nullable */
+  limitPrice?: number | null;
+  submittedAt: string;
+  /** @nullable */
+  filledAt?: string | null;
+  /** @nullable */
+  canceledAt?: string | null;
+}
+
+export type AlpacaOrderInputSide = typeof AlpacaOrderInputSide[keyof typeof AlpacaOrderInputSide];
+
+
+export const AlpacaOrderInputSide = {
+  buy: 'buy',
+  sell: 'sell',
+} as const;
+
+export type AlpacaOrderInputType = typeof AlpacaOrderInputType[keyof typeof AlpacaOrderInputType];
+
+
+export const AlpacaOrderInputType = {
+  market: 'market',
+  limit: 'limit',
+  stop: 'stop',
+  stop_limit: 'stop_limit',
+} as const;
+
+export type AlpacaOrderInputTimeInForce = typeof AlpacaOrderInputTimeInForce[keyof typeof AlpacaOrderInputTimeInForce];
+
+
+export const AlpacaOrderInputTimeInForce = {
+  gtc: 'gtc',
+  ioc: 'ioc',
+  day: 'day',
+} as const;
+
+export interface AlpacaOrderInput {
+  /** Our symbol (BTC-USDT) or Alpaca format (BTC/USD) */
+  symbol: string;
+  side: AlpacaOrderInputSide;
+  /** Quantity in asset units */
+  qty?: number;
+  /** Dollar amount to spend/receive (use instead of qty for fractional) */
+  notional?: number;
+  type?: AlpacaOrderInputType;
+  time_in_force?: AlpacaOrderInputTimeInForce;
+  limit_price?: number;
+  stop_price?: number;
 }
 
 export type TradingModeInputMode = typeof TradingModeInputMode[keyof typeof TradingModeInputMode];
@@ -259,4 +379,8 @@ export const TradingModeInputMode = {
 export interface TradingModeInput {
   mode: TradingModeInputMode;
 }
+
+export type ListAlpacaOrdersParams = {
+limit?: number;
+};
 

@@ -5,6 +5,7 @@
  * Trading Terminal API
  * OpenAPI spec version: 0.1.0
  */
+import type { TradingAccountMode } from './tradingAccountMode';
 import type { TradingAccountStatus } from './tradingAccountStatus';
 
 export interface TradingAccount {
@@ -12,6 +13,7 @@ export interface TradingAccount {
   userId: number;
   exchange: string;
   label: string;
+  mode?: TradingAccountMode;
   status: TradingAccountStatus;
   /** @nullable */
   balance?: number | null;

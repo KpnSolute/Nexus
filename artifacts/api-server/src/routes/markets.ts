@@ -3,7 +3,7 @@ import {
   SUPPORTED_MARKETS,
   getTicker,
   getTickers,
-  generateCandles,
+  fetchCandles,
   generateSignals,
 } from "../lib/market-data";
 
@@ -11,10 +11,10 @@ const router: IRouter = Router();
 
 router.get("/markets", async (_req, res): Promise<void> => {
   res.json(SUPPORTED_MARKETS.map(m => ({
-    symbol: m.symbol,
-    name: m.name,
+    symbol:   m.symbol,
+    name:     m.name,
     exchange: m.exchange,
-    type: m.type,
+    type:     m.type,
   })));
 });
 
@@ -37,7 +37,7 @@ router.get("/markets/:symbol/ticker", async (req, res): Promise<void> => {
 });
 
 router.get("/markets/:symbol/candles/:interval", async (req, res): Promise<void> => {
-  const symbol = Array.isArray(req.params.symbol) ? req.params.symbol[0] : req.params.symbol;
+  const symbol   = Array.isArray(req.params.symbol)   ? req.params.symbol[0]   : req.params.symbol;
   const interval = Array.isArray(req.params.interval) ? req.params.interval[0] : req.params.interval;
 
   const validIntervals = ["1m", "5m", "15m", "1h", "4h", "1d"];
@@ -52,8 +52,12 @@ router.get("/markets/:symbol/candles/:interval", async (req, res): Promise<void>
     return;
   }
 
-  const candles = generateCandles(symbol, interval, 120);
-  res.json(candles);
+  try {
+    const candles = await fetchCandles(symbol, interval, 120);
+    res.json(candles);
+  } catch (err: any) {
+    res.status(502).json({ error: `Failed to fetch candles: ${err?.message ?? "unknown"}` });
+  }
 });
 
 router.get("/markets/:symbol/signals", async (req, res): Promise<void> => {
@@ -63,9 +67,7 @@ router.get("/markets/:symbol/signals", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Market not found" });
     return;
   }
-
-  // Ensure ticker data is loaded
-  await getTicker(symbol);
+  await getTicker(symbol); // ensure ticker is loaded
   const signals = generateSignals(symbol);
   res.json(signals);
 });

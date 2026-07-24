@@ -5,15 +5,20 @@ import {
   useGetMarketCandles, 
   useGetMarketSignals,
   useCreateTrade,
+  usePlaceAlpacaOrder,
+  useListAccounts,
   getListTradesQueryKey,
   getGetPortfolioSummaryQueryKey,
-  getListPositionsQueryKey
+  getListPositionsQueryKey,
+  getListAlpacaOrdersQueryKey,
+  getListAlpacaPositionsQueryKey,
+  getGetAlpacaAccountQueryKey,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Activity, ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown, Minus, Clock, BarChart2 } from 'lucide-react';
+import { Activity, ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown, Minus, Clock, BarChart2, Zap } from 'lucide-react';
 import { cn, formatPrice, formatPct, formatNumber } from '@/lib/utils';
 import { ComposedChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
@@ -38,18 +43,23 @@ export default function Market() {
   const { data: candles } = useGetMarketCandles(safeSymbol, interval, { query: { refetchInterval: 30000 } });
   const { data: signals } = useGetMarketSignals(safeSymbol, { query: { refetchInterval: 60000 } });
   
-  const createTrade = useCreateTrade();
-  
+  const createTrade   = useCreateTrade();
+  const placeAlpaca   = usePlaceAlpacaOrder();
+  const { data: accounts } = useListAccounts();
+
+  const alpacaAccount = accounts?.find(a => a.exchange === 'alpaca' && a.status === 'active');
+  const alpacaMode    = alpacaAccount ? (alpacaAccount as any).mode as string : null;
+  const usingAlpaca   = !!alpacaAccount;
+
   const [tradeSide, setTradeSide] = useState<'buy'|'sell'>('buy');
+  const [orderSuccess, setOrderSuccess] = useState<string | null>(null);
   const { register, handleSubmit, reset, setValue, watch } = useForm<TradeForm>({
     resolver: zodResolver(tradeSchema)
   });
 
   // Pre-fill price when ticker loads if not touched
   useEffect(() => {
-    if (ticker?.price) {
-      setValue('price', ticker.price);
-    }
+    if (ticker?.price) setValue('price', ticker.price);
   }, [ticker?.price, setValue]);
 
   const qty = watch('quantity') || 0;
@@ -57,24 +67,50 @@ export default function Market() {
   const estimatedTotal = qty * price;
 
   const onSubmit = (data: TradeForm) => {
-    createTrade.mutate({
-      data: {
-        symbol: safeSymbol,
-        side: tradeSide,
-        quantity: data.quantity,
-        price: data.price,
-        notes: data.notes
-      }
-    }, {
-      onSuccess: () => {
-        reset({ quantity: 0, price: ticker?.price, notes: '' });
-        queryClient.invalidateQueries({ queryKey: getListTradesQueryKey() });
-        queryClient.invalidateQueries({ queryKey: getGetPortfolioSummaryQueryKey() });
-        queryClient.invalidateQueries({ queryKey: getListPositionsQueryKey() });
-        // Could show a toast here
-      }
-    });
+    if (usingAlpaca) {
+      // Route through Alpaca — real or paper depending on connected account mode
+      placeAlpaca.mutate({
+        data: {
+          symbol:  safeSymbol,      // backend converts BTC-USDT → BTC/USD
+          side:    tradeSide,
+          qty:     data.quantity,
+          type:    data.price ? 'limit' : 'market',
+          time_in_force: 'gtc',
+          limit_price: data.price,
+        }
+      }, {
+        onSuccess: (order) => {
+          setOrderSuccess(`${tradeSide.toUpperCase()} order submitted · ID ${(order as any).id?.slice(0, 8)}…`);
+          setTimeout(() => setOrderSuccess(null), 4000);
+          reset({ quantity: 0, price: ticker?.price, notes: '' });
+          queryClient.invalidateQueries({ queryKey: getListAlpacaOrdersQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getListAlpacaPositionsQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetAlpacaAccountQueryKey() });
+        }
+      });
+    } else {
+      // Paper trade stored in our own DB
+      createTrade.mutate({
+        data: {
+          symbol:   safeSymbol,
+          side:     tradeSide,
+          quantity: data.quantity,
+          price:    data.price,
+          notes:    data.notes,
+        }
+      }, {
+        onSuccess: () => {
+          reset({ quantity: 0, price: ticker?.price, notes: '' });
+          queryClient.invalidateQueries({ queryKey: getListTradesQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetPortfolioSummaryQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getListPositionsQueryKey() });
+        }
+      });
+    }
   };
+
+  const isSubmitting = createTrade.isPending || placeAlpaca.isPending;
+  const submitError  = (createTrade.error || placeAlpaca.error) as any;
 
   const isUp = ticker && ticker.changePct24h >= 0;
 
@@ -337,8 +373,19 @@ export default function Market() {
 
         {/* Trade Panel */}
         <div className="border border-border bg-card flex flex-col flex-1">
+          {/* Alpaca routing badge */}
+          {usingAlpaca && (
+            <div className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold tracking-widest border-b border-border',
+              alpacaMode === 'live' ? 'bg-down/10 text-down' : 'bg-primary/10 text-primary'
+            )}>
+              <Zap className="w-3 h-3" />
+              VIA ALPACA {alpacaMode === 'live' ? 'LIVE' : 'PAPER'}
+            </div>
+          )}
+
           <div className="flex">
-            <button 
+            <button
               onClick={() => setTradeSide('buy')}
               className={cn(
                 "flex-1 py-3 text-sm font-bold tracking-widest transition-colors border-b-2",
@@ -347,7 +394,7 @@ export default function Market() {
             >
               BUY
             </button>
-            <button 
+            <button
               onClick={() => setTradeSide('sell')}
               className={cn(
                 "flex-1 py-3 text-sm font-bold tracking-widest transition-colors border-b-2",
@@ -370,13 +417,15 @@ export default function Market() {
                   placeholder="0.00"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-bold">
-                  {safeSymbol.split('/')[0]}
+                  {safeSymbol.split('-')[0]}
                 </span>
               </div>
             </div>
 
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">LIMIT PRICE (OPTIONAL)</label>
+              <label className="block text-xs text-muted-foreground mb-1">
+                {usingAlpaca ? 'LIMIT PRICE (LEAVE BLANK FOR MARKET)' : 'LIMIT PRICE (OPTIONAL)'}
+              </label>
               <div className="relative">
                 <input
                   {...register('price')}
@@ -396,16 +445,40 @@ export default function Market() {
               <span className="text-lg font-bold">{formatPrice(estimatedTotal)}</span>
             </div>
 
+            {/* Success message */}
+            {orderSuccess && (
+              <div className="text-up text-[10px] p-2 bg-up/10 border border-up/30 font-bold">
+                ✓ {orderSuccess}
+              </div>
+            )}
+
+            {/* Error message */}
+            {submitError && (
+              <div className="text-down text-[10px] p-2 bg-down/10 border border-down/30">
+                {submitError?.response?.data?.error ?? submitError?.message ?? 'Order failed'}
+              </div>
+            )}
+
             <button
               type="submit"
-              disabled={createTrade.isPending || qty <= 0}
+              disabled={isSubmitting || qty <= 0}
               className={cn(
-                "w-full py-3 mt-4 text-sm font-bold tracking-widest transition-colors disabled:opacity-50",
+                "w-full py-3 mt-2 text-sm font-bold tracking-widest transition-colors disabled:opacity-50",
                 tradeSide === 'buy' ? "bg-up text-up-foreground hover:bg-up/90" : "bg-down text-down-foreground hover:bg-down/90"
               )}
             >
-              {createTrade.isPending ? 'EXECUTING...' : `PLACE ${tradeSide.toUpperCase()} ORDER`}
+              {isSubmitting
+                ? 'EXECUTING...'
+                : usingAlpaca
+                  ? `${tradeSide.toUpperCase()} VIA ALPACA`
+                  : `PLACE ${tradeSide.toUpperCase()} ORDER`}
             </button>
+
+            {!usingAlpaca && (
+              <p className="text-[10px] text-muted-foreground text-center -mt-2">
+                Connect Alpaca in Accounts to trade live
+              </p>
+            )}
           </form>
         </div>
 

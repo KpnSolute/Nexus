@@ -21,11 +21,16 @@ import type {
 
 import type {
   AccountInput,
+  AlpacaAccount,
+  AlpacaOrder,
+  AlpacaOrderInput,
+  AlpacaPosition,
   AuthCredentials,
   AuthUser,
   Candle,
   ErrorResponse,
   HealthStatus,
+  ListAlpacaOrdersParams,
   Market,
   MarketSignal,
   MarketTicker,
@@ -1638,6 +1643,386 @@ export const useDisconnectAccount = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getDisconnectAccountMutationOptions(options));
+    }
+
+export const getGetAlpacaAccountUrl = () => {
+
+
+
+
+  return `/api/alpaca/account`
+}
+
+/**
+ * @summary Get connected Alpaca account info (equity, buying power, cash)
+ */
+export const getAlpacaAccount = async ( options?: RequestInit): Promise<AlpacaAccount> => {
+
+  return customFetch<AlpacaAccount>(getGetAlpacaAccountUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAlpacaAccountQueryKey = () => {
+    return [
+    `/api/alpaca/account`
+    ] as const;
+    }
+
+
+export const getGetAlpacaAccountQueryOptions = <TData = Awaited<ReturnType<typeof getAlpacaAccount>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAlpacaAccount>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAlpacaAccountQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAlpacaAccount>>> = ({ signal }) => getAlpacaAccount({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAlpacaAccount>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAlpacaAccountQueryResult = NonNullable<Awaited<ReturnType<typeof getAlpacaAccount>>>
+export type GetAlpacaAccountQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get connected Alpaca account info (equity, buying power, cash)
+ */
+
+export function useGetAlpacaAccount<TData = Awaited<ReturnType<typeof getAlpacaAccount>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAlpacaAccount>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAlpacaAccountQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAlpacaPositionsUrl = () => {
+
+
+
+
+  return `/api/alpaca/positions`
+}
+
+/**
+ * @summary Get real open positions from Alpaca
+ */
+export const listAlpacaPositions = async ( options?: RequestInit): Promise<AlpacaPosition[]> => {
+
+  return customFetch<AlpacaPosition[]>(getListAlpacaPositionsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAlpacaPositionsQueryKey = () => {
+    return [
+    `/api/alpaca/positions`
+    ] as const;
+    }
+
+
+export const getListAlpacaPositionsQueryOptions = <TData = Awaited<ReturnType<typeof listAlpacaPositions>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAlpacaPositions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAlpacaPositionsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAlpacaPositions>>> = ({ signal }) => listAlpacaPositions({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAlpacaPositions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAlpacaPositionsQueryResult = NonNullable<Awaited<ReturnType<typeof listAlpacaPositions>>>
+export type ListAlpacaPositionsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get real open positions from Alpaca
+ */
+
+export function useListAlpacaPositions<TData = Awaited<ReturnType<typeof listAlpacaPositions>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAlpacaPositions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAlpacaPositionsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAlpacaOrdersUrl = (params?: ListAlpacaOrdersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/alpaca/orders?${stringifiedParams}` : `/api/alpaca/orders`
+}
+
+/**
+ * @summary Get real order history from Alpaca
+ */
+export const listAlpacaOrders = async (params?: ListAlpacaOrdersParams, options?: RequestInit): Promise<AlpacaOrder[]> => {
+
+  return customFetch<AlpacaOrder[]>(getListAlpacaOrdersUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAlpacaOrdersQueryKey = (params?: ListAlpacaOrdersParams,) => {
+    return [
+    `/api/alpaca/orders`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAlpacaOrdersQueryOptions = <TData = Awaited<ReturnType<typeof listAlpacaOrders>>, TError = ErrorType<ErrorResponse>>(params?: ListAlpacaOrdersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAlpacaOrders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAlpacaOrdersQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAlpacaOrders>>> = ({ signal }) => listAlpacaOrders(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAlpacaOrders>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAlpacaOrdersQueryResult = NonNullable<Awaited<ReturnType<typeof listAlpacaOrders>>>
+export type ListAlpacaOrdersQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get real order history from Alpaca
+ */
+
+export function useListAlpacaOrders<TData = Awaited<ReturnType<typeof listAlpacaOrders>>, TError = ErrorType<ErrorResponse>>(
+ params?: ListAlpacaOrdersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAlpacaOrders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAlpacaOrdersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPlaceAlpacaOrderUrl = () => {
+
+
+
+
+  return `/api/alpaca/orders`
+}
+
+/**
+ * @summary Place a real order through Alpaca
+ */
+export const placeAlpacaOrder = async (alpacaOrderInput: AlpacaOrderInput, options?: RequestInit): Promise<AlpacaOrder> => {
+
+  return customFetch<AlpacaOrder>(getPlaceAlpacaOrderUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(alpacaOrderInput)
+  }
+);}
+
+
+
+
+
+export const getPlaceAlpacaOrderMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof placeAlpacaOrder>>, TError,{data: BodyType<AlpacaOrderInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof placeAlpacaOrder>>, TError,{data: BodyType<AlpacaOrderInput>}, TContext> => {
+
+const mutationKey = ['placeAlpacaOrder'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof placeAlpacaOrder>>, {data: BodyType<AlpacaOrderInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  placeAlpacaOrder(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PlaceAlpacaOrderMutationResult = NonNullable<Awaited<ReturnType<typeof placeAlpacaOrder>>>
+    export type PlaceAlpacaOrderMutationBody = BodyType<AlpacaOrderInput>
+    export type PlaceAlpacaOrderMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Place a real order through Alpaca
+ */
+export const usePlaceAlpacaOrder = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof placeAlpacaOrder>>, TError,{data: BodyType<AlpacaOrderInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof placeAlpacaOrder>>,
+        TError,
+        {data: BodyType<AlpacaOrderInput>},
+        TContext
+      > => {
+      return useMutation(getPlaceAlpacaOrderMutationOptions(options));
+    }
+
+export const getCancelAlpacaOrderUrl = (orderId: string,) => {
+
+
+
+
+  return `/api/alpaca/orders/${orderId}`
+}
+
+/**
+ * @summary Cancel an open Alpaca order
+ */
+export const cancelAlpacaOrder = async (orderId: string, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getCancelAlpacaOrderUrl(orderId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getCancelAlpacaOrderMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelAlpacaOrder>>, TError,{orderId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelAlpacaOrder>>, TError,{orderId: string}, TContext> => {
+
+const mutationKey = ['cancelAlpacaOrder'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelAlpacaOrder>>, {orderId: string}> = (props) => {
+          const {orderId} = props ?? {};
+
+          return  cancelAlpacaOrder(orderId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelAlpacaOrderMutationResult = NonNullable<Awaited<ReturnType<typeof cancelAlpacaOrder>>>
+
+    export type CancelAlpacaOrderMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Cancel an open Alpaca order
+ */
+export const useCancelAlpacaOrder = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelAlpacaOrder>>, TError,{orderId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof cancelAlpacaOrder>>,
+        TError,
+        {orderId: string},
+        TContext
+      > => {
+      return useMutation(getCancelAlpacaOrderMutationOptions(options));
     }
 
 export const getUpdateTradingModeUrl = () => {
