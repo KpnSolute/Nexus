@@ -2,8 +2,9 @@ import React from 'react';
 import { useAuth } from '@/lib/auth';
 import { useUpdateTradingMode, getGetMeQueryKey } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Settings as SettingsIcon, ShieldAlert, BookOpen, AlertTriangle } from 'lucide-react';
+import { Settings as SettingsIcon, ShieldAlert, BookOpen, AlertTriangle, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Link } from 'wouter';
 
 export default function Settings() {
   const { user } = useAuth();
@@ -90,11 +91,22 @@ export default function Settings() {
                 <div className="font-bold mb-1">PAPER TRADING ACTIVE</div>
                 <div className="text-up/80 text-xs leading-relaxed">
                   Orders are simulated using real-time market data but no real funds are at risk.
-                  Use this environment to test strategies and familiarity with the terminal.
+                  Use this environment to test strategies and build familiarity with the terminal.
                 </div>
               </div>
             </div>
           )}
+
+          {/* Note about Alpaca mode */}
+          <div className="text-[10px] text-muted-foreground border-t border-border pt-4 leading-relaxed">
+            <AlertTriangle className="w-3 h-3 inline mr-1 mb-0.5" />
+            This toggle controls the default paper/real environment for <strong>internal trades</strong>.
+            If you have connected an Alpaca account, orders on the market page are routed through Alpaca's own paper or live mode,
+            regardless of this setting.{' '}
+            <Link href="/accounts" className="text-primary hover:underline inline-flex items-center gap-0.5">
+              Manage Alpaca <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
         </div>
       </div>
 

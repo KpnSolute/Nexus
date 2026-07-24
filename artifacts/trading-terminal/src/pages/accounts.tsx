@@ -205,11 +205,13 @@ function AlpacaPanel() {
                   {canCancel && (
                     <button
                       onClick={() => {
+                        if (!confirm(`Cancel this ${o.side.toUpperCase()} order for ${o.qty} ${o.symbol}?`)) return;
                         cancelOrder.mutate({ orderId: o.id }, {
                           onSuccess: () => queryClient.invalidateQueries({ queryKey: getListAlpacaOrdersQueryKey() }),
                         });
                       }}
-                      className="p-1.5 border border-border hover:bg-down/20 hover:text-down hover:border-down/40 transition-colors"
+                      disabled={cancelOrder.isPending}
+                      className="p-1.5 border border-border hover:bg-down/20 hover:text-down hover:border-down/40 transition-colors disabled:opacity-50"
                       title="Cancel order"
                     >
                       <X className="w-3 h-3" />

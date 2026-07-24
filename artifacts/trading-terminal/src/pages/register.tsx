@@ -63,6 +63,7 @@ export default function Register() {
               placeholder="••••••••"
               autoComplete="new-password"
             />
+            <p className="text-[10px] text-muted-foreground mt-1">Minimum 6 characters</p>
             {errors.password && <p className="text-down text-xs mt-1">{errors.password.message}</p>}
           </div>
 

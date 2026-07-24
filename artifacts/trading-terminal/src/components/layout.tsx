@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { useLogout, getGetMeQueryKey } from '@workspace/api-client-react';
+import { useLogout, useListAccounts, getGetMeQueryKey } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { LayoutDashboard, LineChart, History, PieChart, Wallet, Settings, LogOut, Activity } from 'lucide-react';
+import { LayoutDashboard, LineChart, History, PieChart, Wallet, Settings, LogOut, Activity, Zap } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 
@@ -11,6 +11,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const logout = useLogout();
+  const { data: accounts } = useListAccounts();
+
+  const [clock, setClock] = useState(() =>
+    new Date().toISOString().replace('T', ' ').substring(0, 19)
+  );
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setClock(new Date().toISOString().replace('T', ' ').substring(0, 19));
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const alpacaAccount = accounts?.find(a => a.exchange === 'alpaca' && a.status === 'active');
+  const alpacaMode    = alpacaAccount ? (alpacaAccount as any).mode as string : null;
 
   const handleLogout = () => {
     logout.mutate(undefined, {
@@ -22,11 +37,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
   };
 
   const navItems = [
-    { href: '/dashboard', label: 'Terminal', icon: LayoutDashboard },
-    { href: '/portfolio', label: 'Portfolio', icon: PieChart },
-    { href: '/trades', label: 'Trade History', icon: History },
-    { href: '/accounts', label: 'Connected Accounts', icon: Wallet },
-    { href: '/settings', label: 'Settings', icon: Settings },
+    { href: '/dashboard',      label: 'Terminal',           icon: LayoutDashboard },
+    { href: '/market/BTC-USDT',label: 'Markets',            icon: LineChart },
+    { href: '/portfolio',      label: 'Portfolio',          icon: PieChart },
+    { href: '/trades',         label: 'Trade History',      icon: History },
+    { href: '/accounts',       label: 'Connected Accounts', icon: Wallet },
+    { href: '/settings',       label: 'Settings',           icon: Settings },
   ];
 
   return (
@@ -40,15 +56,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
           <nav className="flex flex-col gap-1 p-2">
             {navItems.map((item) => {
-              const isActive = location === item.href || (item.href !== '/dashboard' && location.startsWith(item.href));
+              const isMarkets = item.href.startsWith('/market/');
+              const isActive = location === item.href ||
+                (isMarkets && location.startsWith('/market/')) ||
+                (!isMarkets && item.href !== '/dashboard' && location.startsWith(item.href));
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   className={cn(
                     "flex items-center gap-3 px-3 py-2.5 transition-colors group",
-                    isActive 
-                      ? "bg-primary/10 text-primary border-l-2 border-primary" 
+                    isActive
+                      ? "bg-primary/10 text-primary border-l-2 border-primary"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground border-l-2 border-transparent"
                   )}
                   title={item.label}
@@ -68,12 +87,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
               STATUS: ONLINE
             </div>
             <div className="truncate">USER: {user?.username.toUpperCase()}</div>
-            <div className={cn(
-              "font-bold",
-              user?.tradingMode === 'real' ? "text-down" : "text-up"
-            )}>
-              MODE: {user?.tradingMode.toUpperCase()}
-            </div>
+            {alpacaMode ? (
+              <div className={cn('font-bold flex items-center gap-1', alpacaMode === 'live' ? 'text-down' : 'text-primary')}>
+                <Zap className="w-3 h-3" />
+                ALPACA {alpacaMode.toUpperCase()}
+              </div>
+            ) : (
+              <div className={cn('font-bold', user?.tradingMode === 'real' ? 'text-down' : 'text-up')}>
+                MODE: {user?.tradingMode.toUpperCase()}
+              </div>
+            )}
           </div>
           <button
             onClick={handleLogout}
@@ -91,17 +114,28 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {/* Top Header */}
         <header className="h-14 border-b border-border flex items-center px-6 justify-between bg-background shrink-0">
           <div className="flex items-center gap-4">
-            <div className="text-xs font-mono text-muted-foreground">
-              {new Date().toISOString().replace('T', ' ').substring(0, 19)} UTC
+            <div className="text-xs font-mono text-muted-foreground tabular-nums">
+              {clock} UTC
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            {user?.tradingMode === 'real' && (
+          <div className="flex items-center gap-2">
+            {/* Alpaca mode badge takes priority over settings mode */}
+            {alpacaMode === 'live' && (
+              <div className="px-2 py-0.5 border border-down/50 bg-down/10 text-down text-xs font-mono font-bold animate-pulse flex items-center gap-1">
+                <Zap className="w-3 h-3" /> ALPACA LIVE
+              </div>
+            )}
+            {alpacaMode === 'paper' && (
+              <div className="px-2 py-0.5 border border-primary/50 bg-primary/10 text-primary text-xs font-mono font-bold flex items-center gap-1">
+                <Zap className="w-3 h-3" /> ALPACA PAPER
+              </div>
+            )}
+            {!alpacaMode && user?.tradingMode === 'real' && (
               <div className="px-2 py-0.5 border border-down/50 bg-down/10 text-down text-xs font-mono font-bold animate-pulse">
                 REAL FUNDS ACTIVE
               </div>
             )}
-            {user?.tradingMode === 'paper' && (
+            {!alpacaMode && user?.tradingMode === 'paper' && (
               <div className="px-2 py-0.5 border border-up/50 bg-up/10 text-up text-xs font-mono font-bold">
                 PAPER TRADING
               </div>

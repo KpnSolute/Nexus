@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useListTrades, useGetTrade } from '@workspace/api-client-react';
-import { History, Search, Filter, X, ArrowUpRight, ArrowDownRight, Clock, Info } from 'lucide-react';
+import { History, Search, X, ArrowUpRight, ArrowDownRight, Clock, Info, ExternalLink } from 'lucide-react';
 import { cn, formatPrice } from '@/lib/utils';
 import { Link } from 'wouter';
 import * as Dialog from '@radix-ui/react-dialog';
@@ -99,6 +99,17 @@ function TradeDetailsDialog({ tradeId, open, onOpenChange }: { tradeId: number |
                     </div>
                   )}
                 </div>
+
+                {/* Go to Market button */}
+                <Dialog.Close asChild>
+                  <Link
+                    href={`/market/${trade.symbol}`}
+                    className="mt-2 flex items-center justify-center gap-2 py-2 border border-border bg-muted/30 hover:bg-primary/10 hover:text-primary hover:border-primary/50 transition-colors text-xs font-bold tracking-widest"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    OPEN {trade.symbol} CHART
+                  </Link>
+                </Dialog.Close>
               </>
             )}
           </div>
@@ -111,7 +122,6 @@ function TradeDetailsDialog({ tradeId, open, onOpenChange }: { tradeId: number |
 export default function Trades() {
   const { data: trades } = useListTrades({ query: { refetchInterval: 15000 } });
   const [filterSymbol, setFilterSymbol] = useState('');
-  
   const [selectedTrade, setSelectedTrade] = useState<number | null>(null);
 
   const filteredTrades = trades?.filter(t => 
@@ -141,9 +151,24 @@ export default function Trades() {
               placeholder="FILTER SYMBOL"
               className="w-48 bg-input border border-border text-foreground px-8 py-1.5 text-xs focus:outline-none focus:border-primary uppercase"
             />
+            {filterSymbol && (
+              <button
+                onClick={() => setFilterSymbol('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Trade count */}
+      {filterSymbol && (
+        <div className="text-xs text-muted-foreground -mt-4">
+          {filteredTrades?.length ?? 0} result{filteredTrades?.length !== 1 ? 's' : ''} for "{filterSymbol}"
+        </div>
+      )}
 
       <div className="flex-1 overflow-auto border border-border bg-card">
         <table className="w-full text-sm text-left relative">
@@ -160,10 +185,10 @@ export default function Trades() {
             </tr>
           </thead>
           <tbody>
-            {filteredTrades?.length === 0 && (
+            {(!filteredTrades || filteredTrades.length === 0) && (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
-                  NO TRADES FOUND
+                <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
+                  {filterSymbol ? `NO TRADES MATCHING "${filterSymbol}"` : 'NO TRADES YET'}
                 </td>
               </tr>
             )}
@@ -175,7 +200,7 @@ export default function Trades() {
                   className="border-b border-border hover:bg-muted/30 transition-colors cursor-pointer"
                   onClick={() => setSelectedTrade(trade.id)}
                 >
-                  <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                  <td className="px-4 py-3 text-muted-foreground whitespace-nowrap tabular-nums">
                     {new Date(trade.createdAt).toISOString().replace('T', ' ').substring(0, 19)}
                   </td>
                   <td className="px-4 py-3 font-bold">
@@ -195,19 +220,19 @@ export default function Trades() {
                       {trade.side.toUpperCase()}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right font-medium">
+                  <td className="px-4 py-3 text-right font-medium tabular-nums">
                     {formatPrice(trade.price, 4)}
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right tabular-nums">
                     {trade.quantity}
                   </td>
-                  <td className="px-4 py-3 text-right text-muted-foreground">
+                  <td className="px-4 py-3 text-right text-muted-foreground tabular-nums">
                     {trade.total ? formatPrice(trade.total) : '---'}
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span className={cn(
                       "text-[10px] px-1.5 py-0.5 uppercase border",
-                      trade.status === 'filled' ? "border-primary/50 text-primary bg-primary/10" : 
+                      trade.status === 'filled'  ? "border-primary/50 text-primary bg-primary/10" : 
                       trade.status === 'pending' ? "border-accent/50 text-accent bg-accent/10" :
                       "border-muted text-muted-foreground"
                     )}>

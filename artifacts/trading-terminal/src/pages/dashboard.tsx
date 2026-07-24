@@ -175,9 +175,12 @@ export default function Dashboard() {
             )}
             {watchlist?.map(item => {
               const liveData = liveTickers[item.symbol];
-              const price = liveData?.price ?? 0;
-              const changePct = liveData?.changePct24h ?? 0;
-              const isUp = changePct >= 0;
+              // Fall back to trending data for price while WS warms up
+              const trendingFallback = trending?.find(t => t.symbol === item.symbol);
+              const price     = liveData?.price     ?? trendingFallback?.price     ?? 0;
+              const changePct = liveData?.changePct24h ?? trendingFallback?.changePct24h ?? 0;
+              const isUp      = changePct >= 0;
+              const isLive    = !!liveData;
 
               return (
                 <Link key={item.id} href={`/market/${item.symbol}`}>
@@ -200,12 +203,13 @@ export default function Dashboard() {
                     <div className="flex justify-between items-end">
                       <div className={cn(
                         "text-xl tracking-tight transition-colors duration-300",
-                        liveData ? (isUp ? "text-up" : "text-down") : "text-foreground"
+                        isUp ? "text-up" : price ? "text-down" : "text-foreground"
                       )}>
-                        {price ? formatPrice(price, 4) : 'LOADING...'}
+                        {price ? formatPrice(price, 4) : '---'}
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        24H
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        {isLive && <span className="w-1.5 h-1.5 rounded-full bg-up animate-pulse inline-block" />}
+                        {isLive ? 'LIVE' : '24H'}
                       </div>
                     </div>
                   </div>

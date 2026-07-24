@@ -18,65 +18,114 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Activity, ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown, Minus, Clock, BarChart2, Zap } from 'lucide-react';
-import { cn, formatPrice, formatPct, formatNumber } from '@/lib/utils';
+import { Activity, TrendingUp, TrendingDown, Minus, BarChart2, Zap, X } from 'lucide-react';
+import { cn, formatPrice, formatNumber } from '@/lib/utils';
 import { ComposedChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 type Interval = '1m' | '5m' | '15m' | '1h' | '4h' | '1d';
 
 const tradeSchema = z.object({
   quantity: z.coerce.number().positive('Quantity must be positive'),
-  price: z.coerce.number().positive('Price must be positive').optional(),
+  price: z.coerce.number().positive().optional(),
   notes: z.string().optional(),
 });
-
 type TradeForm = z.infer<typeof tradeSchema>;
+
+// ─── Stable order-book sizes (memoized per price, no flicker) ───────────────
+function useOrderBookSizes(seed: number) {
+  return useMemo(() => {
+    const rng = (n: number) => {
+      let x = Math.sin(seed + n) * 10000;
+      return (x - Math.floor(x)) * 9.9 + 0.1;
+    };
+    return Array.from({ length: 10 }, (_, i) => rng(i));
+  }, [seed]);
+}
+
+// ─── Proper candlestick shape with wicks ────────────────────────────────────
+const CandlestickShape = (props: any) => {
+  const { x, y, width, height, payload } = props;
+  const { open, high, low, close, isUp } = payload;
+  const color  = isUp ? 'hsl(var(--up))' : 'hsl(var(--down))';
+  const range  = high - low;
+  if (range === 0 || height === 0) return null;
+
+  // y = top pixel (high), y+height = bottom pixel (low)
+  const bodyTop    = y + ((high - Math.max(open, close)) / range) * height;
+  const bodyBottom = y + ((high - Math.min(open, close)) / range) * height;
+  const bodyH      = Math.max(bodyBottom - bodyTop, 1);
+  const cx         = x + width / 2;
+  const bodyW      = Math.max(width - 2, 2);
+
+  return (
+    <g>
+      {/* Wick */}
+      <line x1={cx} y1={y} x2={cx} y2={y + height} stroke={color} strokeWidth={1} />
+      {/* Body */}
+      <rect x={cx - bodyW / 2} y={bodyTop} width={bodyW} height={bodyH} fill={color} />
+    </g>
+  );
+};
 
 export default function Market() {
   const { symbol } = useParams();
-  const safeSymbol = symbol ? decodeURIComponent(symbol).toUpperCase() : 'BTC/USD';
+  const safeSymbol = symbol ? decodeURIComponent(symbol).toUpperCase() : 'BTC-USDT';
   
   const queryClient = useQueryClient();
-  const [interval, setInterval] = useState<Interval>('1h');
+  const [interval, setIntervalState] = useState<Interval>('1h');
   
   const { data: ticker } = useGetMarketTicker(safeSymbol, { query: { refetchInterval: 5000 } });
   const { data: candles } = useGetMarketCandles(safeSymbol, interval, { query: { refetchInterval: 30000 } });
   const { data: signals } = useGetMarketSignals(safeSymbol, { query: { refetchInterval: 60000 } });
   
-  const createTrade   = useCreateTrade();
-  const placeAlpaca   = usePlaceAlpacaOrder();
+  const createTrade = useCreateTrade();
+  const placeAlpaca = usePlaceAlpacaOrder();
   const { data: accounts } = useListAccounts();
 
   const alpacaAccount = accounts?.find(a => a.exchange === 'alpaca' && a.status === 'active');
   const alpacaMode    = alpacaAccount ? (alpacaAccount as any).mode as string : null;
   const usingAlpaca   = !!alpacaAccount;
 
-  const [tradeSide, setTradeSide] = useState<'buy'|'sell'>('buy');
+  const [tradeSide, setTradeSide] = useState<'buy' | 'sell'>('buy');
   const [orderSuccess, setOrderSuccess] = useState<string | null>(null);
+
+  // Price flash animation
+  const prevPrice = useRef<number | null>(null);
+  const [priceFlash, setPriceFlash] = useState<'up' | 'down' | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<string>('');
+
+  useEffect(() => {
+    if (ticker?.price == null) return;
+    if (prevPrice.current !== null && prevPrice.current !== ticker.price) {
+      setPriceFlash(ticker.price > prevPrice.current ? 'up' : 'down');
+      setTimeout(() => setPriceFlash(null), 600);
+    }
+    prevPrice.current = ticker.price;
+    setLastUpdated(new Date().toISOString().replace('T', ' ').substring(11, 19));
+  }, [ticker?.price]);
+
   const { register, handleSubmit, reset, setValue, watch } = useForm<TradeForm>({
-    resolver: zodResolver(tradeSchema)
+    resolver: zodResolver(tradeSchema),
   });
 
-  // Pre-fill price when ticker loads if not touched
   useEffect(() => {
     if (ticker?.price) setValue('price', ticker.price);
   }, [ticker?.price, setValue]);
 
-  const qty = watch('quantity') || 0;
+  const qty   = watch('quantity') || 0;
   const price = watch('price') || ticker?.price || 0;
   const estimatedTotal = qty * price;
 
   const onSubmit = (data: TradeForm) => {
     if (usingAlpaca) {
-      // Route through Alpaca — real or paper depending on connected account mode
       placeAlpaca.mutate({
         data: {
-          symbol:  safeSymbol,      // backend converts BTC-USDT → BTC/USD
-          side:    tradeSide,
-          qty:     data.quantity,
-          type:    data.price ? 'limit' : 'market',
+          symbol,
+          side:          tradeSide,
+          qty:           data.quantity,
+          type:          data.price ? 'limit' : 'market',
           time_in_force: 'gtc',
-          limit_price: data.price,
+          limit_price:   data.price,
         }
       }, {
         onSuccess: (order) => {
@@ -89,7 +138,6 @@ export default function Market() {
         }
       });
     } else {
-      // Paper trade stored in our own DB
       createTrade.mutate({
         data: {
           symbol:   safeSymbol,
@@ -111,38 +159,30 @@ export default function Market() {
 
   const isSubmitting = createTrade.isPending || placeAlpaca.isPending;
   const submitError  = (createTrade.error || placeAlpaca.error) as any;
+  const isUp         = ticker && ticker.changePct24h >= 0;
 
-  const isUp = ticker && ticker.changePct24h >= 0;
+  // Stable order book seed (changes only when ticker price changes by >1%)
+  const obSeed = useMemo(() => Math.floor((ticker?.price || 1000) / 10), [ticker?.price]);
+  const obSizes = useOrderBookSizes(obSeed);
 
-  // Transform candles for Recharts custom shape
+  // Chart data with wickRange for proper candlesticks
   const chartData = useMemo(() => {
     if (!candles) return [];
     return candles.map(c => ({
       ...c,
-      dateStr: new Date(c.time * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      isUp: c.close >= c.open,
-      // Create a bar from low to high to act as the wick
-      wickRange: [c.low, c.high],
-      // Create a bar from open to close to act as the body
-      bodyRange: [Math.min(c.open, c.close), Math.max(c.open, c.close)]
+      dateStr:   new Date(c.time * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      isUp:      c.close >= c.open,
+      wickRange: [c.low, c.high] as [number, number],
     }));
   }, [candles]);
 
-  const CustomCandlestick = (props: any) => {
-    const { x, y, width, height, payload } = props;
-    const isBullish = payload.isUp;
-    const color = isBullish ? 'hsl(var(--up))' : 'hsl(var(--down))';
-    
-    // We only use the body rect provided by Recharts for the thick part.
-    // Recharts automatically scales `bodyRange` to `y` and `height`.
-    // Drawing the wick is harder without the raw scales, so we'll just draw the body for now
-    // to ensure it works correctly without complex scale math.
-    
-    return (
-      <g>
-        <rect x={x} y={y} width={width} height={height} fill={color} />
-      </g>
-    );
+  // Quantity quick-fill from buying power
+  const buyingPower = usingAlpaca ? null : null; // Alpaca buying power not wired here yet
+  const setQtyPct = (pct: number) => {
+    if (!ticker?.price || ticker.price === 0) return;
+    // For paper: use $10,000 virtual budget; for Alpaca: use price×pct of a reasonable amount
+    const budget = 10000;
+    setValue('quantity', parseFloat(((budget * pct) / ticker.price).toFixed(6)));
   };
 
   return (
@@ -158,8 +198,10 @@ export default function Market() {
             
             <div className="flex flex-col">
               <div className={cn(
-                "text-2xl font-bold transition-colors",
-                isUp ? "text-up" : "text-down"
+                "text-2xl font-bold transition-colors duration-300",
+                priceFlash === 'up'   ? "text-up scale-105"   :
+                priceFlash === 'down' ? "text-down scale-95"  :
+                isUp                  ? "text-up"             : "text-down"
               )}>
                 {ticker ? formatPrice(ticker.price, 6) : '---'}
               </div>
@@ -173,6 +215,12 @@ export default function Market() {
                 )}>
                   {isUp ? '+' : ''}{ticker?.changePct24h.toFixed(2)}%
                 </span>
+                {lastUpdated && (
+                  <span className="flex items-center gap-1 text-muted-foreground font-normal">
+                    <span className="w-1.5 h-1.5 rounded-full bg-up animate-pulse inline-block" />
+                    {lastUpdated}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -191,8 +239,10 @@ export default function Market() {
               <div className="text-sm font-bold">{ticker ? formatNumber(ticker.volume24h) : '---'}</div>
             </div>
             <div>
-              <div className="text-[10px] text-muted-foreground mb-1">MKT CAP</div>
-              <div className="text-sm font-bold">{ticker?.marketCap ? formatNumber(ticker.marketCap) : '---'}</div>
+              <div className="text-[10px] text-muted-foreground mb-1">VOL (QUOTE)</div>
+              <div className="text-sm font-bold">
+                {ticker ? formatPrice(ticker.volume24h * ticker.price, 0) : '---'}
+              </div>
             </div>
           </div>
         </div>
@@ -203,7 +253,7 @@ export default function Market() {
             {(['1m', '5m', '15m', '1h', '4h', '1d'] as Interval[]).map(inv => (
               <button
                 key={inv}
-                onClick={() => setInterval(inv)}
+                onClick={() => setIntervalState(inv)}
                 className={cn(
                   "px-3 py-1 text-xs font-bold transition-colors",
                   interval === inv ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -224,23 +274,48 @@ export default function Market() {
                     fontSize={10} 
                     tickLine={false}
                     axisLine={false}
-                    minTickGap={30}
+                    minTickGap={40}
                   />
                   <YAxis 
                     domain={['auto', 'auto']} 
                     stroke="hsl(var(--muted-foreground))" 
                     fontSize={10}
-                    tickFormatter={(val) => val.toFixed(2)}
+                    tickFormatter={(val) => {
+                      if (val >= 1000) return val.toFixed(0);
+                      if (val >= 1)    return val.toFixed(2);
+                      return val.toFixed(4);
+                    }}
                     tickLine={false}
                     axisLine={false}
                     orientation="right"
                   />
                   <Tooltip 
-                    contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: 0 }}
+                    contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: 0, fontSize: 11 }}
                     itemStyle={{ color: 'hsl(var(--foreground))' }}
                     labelStyle={{ color: 'hsl(var(--muted-foreground))', marginBottom: '4px' }}
+                    formatter={(value: any, name: string) => {
+                      if (name === 'wickRange') return null;
+                      return [value, name];
+                    }}
+                    content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null;
+                      const d = payload[0]?.payload;
+                      if (!d) return null;
+                      return (
+                        <div className="border border-border bg-card p-3 text-[10px] font-mono">
+                          <div className="text-muted-foreground mb-2">{d.dateStr}</div>
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                            <span className="text-muted-foreground">OPEN</span>  <span className={d.isUp ? 'text-up' : 'text-down'}>{formatPrice(d.open, 4)}</span>
+                            <span className="text-muted-foreground">HIGH</span>  <span className="text-up">{formatPrice(d.high, 4)}</span>
+                            <span className="text-muted-foreground">LOW</span>   <span className="text-down">{formatPrice(d.low, 4)}</span>
+                            <span className="text-muted-foreground">CLOSE</span> <span className={d.isUp ? 'text-up' : 'text-down'}>{formatPrice(d.close, 4)}</span>
+                            <span className="text-muted-foreground">VOL</span>   <span>{formatNumber(d.volume)}</span>
+                          </div>
+                        </div>
+                      );
+                    }}
                   />
-                  <Bar dataKey="bodyRange" shape={<CustomCandlestick />} isAnimationActive={false}>
+                  <Bar dataKey="wickRange" shape={<CandlestickShape />} isAnimationActive={false}>
                     {chartData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.isUp ? 'hsl(var(--up))' : 'hsl(var(--down))'} />
                     ))}
@@ -259,11 +334,11 @@ export default function Market() {
       {/* Side Panel (Signals & Trade) */}
       <div className="w-full xl:w-80 flex flex-col gap-4 shrink-0">
         
-        {/* Order Book (Simulated context) */}
-        <div className="border border-border bg-card p-4 flex flex-col gap-2 relative overflow-hidden h-48">
+        {/* Order Book */}
+        <div className="border border-border bg-card p-4 flex flex-col gap-2 relative overflow-hidden h-52">
           <h2 className="text-xs font-bold tracking-widest text-muted-foreground flex items-center gap-2 mb-2 z-10">
             <BarChart2 className="w-4 h-4" />
-            ORDER BOOK (SIMULATED)
+            ORDER BOOK <span className="text-[9px] opacity-50">(INDICATIVE)</span>
           </h2>
           <div className="flex-1 flex flex-col text-[10px] font-mono z-10">
             <div className="flex justify-between text-muted-foreground mb-1">
@@ -274,7 +349,7 @@ export default function Market() {
             <div className="flex flex-col gap-0.5 justify-end flex-1">
               {[0.005, 0.004, 0.003, 0.002, 0.001].map((spread, i) => {
                 const p = (ticker?.price || 0) * (1 + spread);
-                const s = Math.random() * 10 + 0.1;
+                const s = obSizes[i];
                 return (
                   <div key={i} className="flex justify-between text-down relative">
                     <div className="absolute right-0 top-0 bottom-0 bg-down/10" style={{ width: `${s * 5}%` }} />
@@ -292,7 +367,7 @@ export default function Market() {
             <div className="flex flex-col gap-0.5 justify-start flex-1">
               {[0.001, 0.002, 0.003, 0.004, 0.005].map((spread, i) => {
                 const p = (ticker?.price || 0) * (1 - spread);
-                const s = Math.random() * 10 + 0.1;
+                const s = obSizes[i + 5];
                 return (
                   <div key={i} className="flex justify-between text-up relative">
                     <div className="absolute right-0 top-0 bottom-0 bg-up/10" style={{ width: `${s * 5}%` }} />
@@ -316,13 +391,13 @@ export default function Market() {
             <div className="text-sm text-muted-foreground">COMPOSITE</div>
             <div className={cn(
               "px-3 py-1 font-bold text-xs uppercase border",
-              signals?.signal === 'strong_buy' ? "bg-up/20 text-up border-up/50" :
-              signals?.signal === 'buy' ? "bg-up/10 text-up border-up/30" :
-              signals?.signal === 'strong_sell' ? "bg-down/20 text-down border-down/50" :
-              signals?.signal === 'sell' ? "bg-down/10 text-down border-down/30" :
+              signals?.signal === 'strong_buy'  ? "bg-up/20 text-up border-up/50" :
+              signals?.signal === 'buy'          ? "bg-up/10 text-up border-up/30" :
+              signals?.signal === 'strong_sell'  ? "bg-down/20 text-down border-down/50" :
+              signals?.signal === 'sell'         ? "bg-down/10 text-down border-down/30" :
               "bg-muted text-muted-foreground border-border"
             )}>
-              {signals?.signal.replace('_', ' ') || 'ANALYZING...'}
+              {signals?.signal?.replace('_', ' ') || 'ANALYZING...'}
             </div>
           </div>
 
@@ -330,8 +405,8 @@ export default function Market() {
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">TREND</span>
               <span className="flex items-center gap-1 font-bold uppercase">
-                {signals?.trend === 'bullish' && <TrendingUp className="w-4 h-4 text-up" />}
-                {signals?.trend === 'bearish' && <TrendingDown className="w-4 h-4 text-down" />}
+                {signals?.trend === 'bullish'  && <TrendingUp className="w-4 h-4 text-up" />}
+                {signals?.trend === 'bearish'  && <TrendingDown className="w-4 h-4 text-down" />}
                 {signals?.trend === 'sideways' && <Minus className="w-4 h-4 text-muted-foreground" />}
                 <span className={cn(
                   signals?.trend === 'bullish' ? "text-up" :
@@ -345,7 +420,11 @@ export default function Market() {
                 "font-bold",
                 signals?.rsi && signals.rsi > 70 ? "text-down" : 
                 signals?.rsi && signals.rsi < 30 ? "text-up" : "text-foreground"
-              )}>{signals?.rsi.toFixed(2) || '---'}</span>
+              )}>
+                {signals?.rsi != null ? signals.rsi.toFixed(2) : '---'}
+                {signals?.rsi && signals.rsi > 70 && <span className="text-[9px] ml-1 opacity-70">OVERBOUGHT</span>}
+                {signals?.rsi && signals.rsi < 30 && <span className="text-[9px] ml-1 opacity-70">OVERSOLD</span>}
+              </span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">MACD</span>
@@ -353,18 +432,18 @@ export default function Market() {
                 "font-bold",
                 signals?.macd && signals.macd > 0 ? "text-up" :
                 signals?.macd && signals.macd < 0 ? "text-down" : "text-foreground"
-              )}>{signals?.macd.toFixed(4) || '---'}</span>
+              )}>{signals?.macd != null ? signals.macd.toFixed(4) : '---'}</span>
             </div>
             
             {(signals?.supportLevel || signals?.resistanceLevel) && (
               <div className="pt-3 border-t border-border mt-3 space-y-2">
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">RESISTANCE</span>
-                  <span className="font-bold text-down">{signals.resistanceLevel ? formatPrice(signals.resistanceLevel, 4) : '---'}</span>
+                  <span className="font-bold text-down">{signals?.resistanceLevel ? formatPrice(signals.resistanceLevel, 4) : '---'}</span>
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">SUPPORT</span>
-                  <span className="font-bold text-up">{signals.supportLevel ? formatPrice(signals.supportLevel, 4) : '---'}</span>
+                  <span className="font-bold text-up">{signals?.supportLevel ? formatPrice(signals.supportLevel, 4) : '---'}</span>
                 </div>
               </div>
             )}
@@ -405,7 +484,8 @@ export default function Market() {
             </button>
           </div>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="p-4 flex flex-col gap-4 flex-1">
+          <form onSubmit={handleSubmit(onSubmit)} className="p-4 flex flex-col gap-3 flex-1">
+            {/* Quantity */}
             <div>
               <label className="block text-xs text-muted-foreground mb-1">QUANTITY</label>
               <div className="relative">
@@ -420,39 +500,61 @@ export default function Market() {
                   {safeSymbol.split('-')[0]}
                 </span>
               </div>
+              {/* Quick-fill presets */}
+              <div className="flex gap-1 mt-1">
+                {[25, 50, 75, 100].map(pct => (
+                  <button
+                    key={pct}
+                    type="button"
+                    onClick={() => setQtyPct(pct / 100)}
+                    className="flex-1 text-[9px] py-0.5 bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors border border-border"
+                  >
+                    {pct}%
+                  </button>
+                ))}
+              </div>
             </div>
 
+            {/* Limit Price */}
             <div>
               <label className="block text-xs text-muted-foreground mb-1">
-                {usingAlpaca ? 'LIMIT PRICE (LEAVE BLANK FOR MARKET)' : 'LIMIT PRICE (OPTIONAL)'}
+                {usingAlpaca ? 'LIMIT PRICE (BLANK = MARKET)' : 'LIMIT PRICE (OPTIONAL)'}
               </label>
               <div className="relative">
                 <input
                   {...register('price')}
                   type="number"
                   step="any"
-                  className="w-full bg-input border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary pr-12"
-                  placeholder={ticker?.price.toString()}
+                  className="w-full bg-input border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary pr-16"
+                  placeholder={ticker?.price?.toString()}
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-bold">
-                  USD
-                </span>
+                <div className="absolute right-0 top-0 bottom-0 flex items-center gap-1 pr-2">
+                  <button
+                    type="button"
+                    onClick={() => setValue('price', undefined as any)}
+                    className="text-muted-foreground hover:text-foreground p-0.5"
+                    title="Clear price (market order)"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                  <span className="text-xs text-muted-foreground font-bold">USD</span>
+                </div>
               </div>
             </div>
 
-            <div className="mt-2 pt-4 border-t border-border flex justify-between items-end">
+            <div className="pt-3 border-t border-border flex justify-between items-center">
               <span className="text-xs text-muted-foreground">ESTIMATED TOTAL</span>
               <span className="text-lg font-bold">{formatPrice(estimatedTotal)}</span>
             </div>
 
-            {/* Success message */}
+            {/* Success */}
             {orderSuccess && (
               <div className="text-up text-[10px] p-2 bg-up/10 border border-up/30 font-bold">
                 ✓ {orderSuccess}
               </div>
             )}
 
-            {/* Error message */}
+            {/* Error */}
             {submitError && (
               <div className="text-down text-[10px] p-2 bg-down/10 border border-down/30">
                 {submitError?.response?.data?.error ?? submitError?.message ?? 'Order failed'}
@@ -463,7 +565,7 @@ export default function Market() {
               type="submit"
               disabled={isSubmitting || qty <= 0}
               className={cn(
-                "w-full py-3 mt-2 text-sm font-bold tracking-widest transition-colors disabled:opacity-50",
+                "w-full py-3 text-sm font-bold tracking-widest transition-colors disabled:opacity-50",
                 tradeSide === 'buy' ? "bg-up text-up-foreground hover:bg-up/90" : "bg-down text-down-foreground hover:bg-down/90"
               )}
             >
@@ -475,13 +577,12 @@ export default function Market() {
             </button>
 
             {!usingAlpaca && (
-              <p className="text-[10px] text-muted-foreground text-center -mt-2">
+              <p className="text-[10px] text-muted-foreground text-center">
                 Connect Alpaca in Accounts to trade live
               </p>
             )}
           </form>
         </div>
-
       </div>
     </div>
   );
