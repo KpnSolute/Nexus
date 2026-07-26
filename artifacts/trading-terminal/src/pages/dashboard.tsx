@@ -27,51 +27,68 @@ export default function Dashboard() {
   const [newSymbol, setNewSymbol] = useState('');
   const [liveTickers, setLiveTickers] = useState<Record<string, any>>({});
   const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const destroyed = useRef(false);
 
   // Determine symbols to subscribe to
   const watchlistSymbols = useMemo(() => {
     return watchlist?.map(w => w.symbol) || [];
   }, [watchlist]);
 
-  useEffect(() => {
-    // Setup WebSocket
+  // Always-current ref so onopen/reconnect always sees latest symbols
+  const watchlistSymbolsRef = useRef<string[]>([]);
+  watchlistSymbolsRef.current = watchlistSymbols;
+
+  const sendSubscribe = (ws: WebSocket) => {
+    const syms = watchlistSymbolsRef.current;
+    if (syms.length > 0 && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "subscribe", symbols: syms }));
+    }
+  };
+
+  const connectWS = () => {
+    if (destroyed.current) return;
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
-    
-    const ws = new WebSocket(wsUrl);
+    const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
     wsRef.current = ws;
 
-    ws.onopen = () => {
-      if (watchlistSymbols.length > 0) {
-        ws.send(JSON.stringify({ type: "subscribe", symbols: watchlistSymbols }));
-      }
-    };
+    ws.onopen = () => sendSubscribe(ws);
 
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
         if (data.type === "ticker") {
-          setLiveTickers(prev => ({
-            ...prev,
-            [data.symbol]: data
-          }));
+          setLiveTickers(prev => ({ ...prev, [data.symbol]: data }));
         }
       } catch (e) {
         console.error("WS parse error", e);
       }
     };
 
-    return () => {
-      ws.close();
+    ws.onclose = () => {
+      if (!destroyed.current) {
+        // Auto-reconnect after 3 s
+        reconnectTimer.current = setTimeout(connectWS, 3000);
+      }
     };
-  }, []);
 
-  // Update subscription when watchlist changes
+    ws.onerror = () => ws.close(); // triggers onclose → reconnect
+  };
+
   useEffect(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN && watchlistSymbols.length > 0) {
-      wsRef.current.send(JSON.stringify({ type: "subscribe", symbols: watchlistSymbols }));
-    }
-  }, [watchlistSymbols]);
+    destroyed.current = false;
+    connectWS();
+    return () => {
+      destroyed.current = true;
+      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+      wsRef.current?.close();
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Re-subscribe when watchlist changes (WS already open)
+  useEffect(() => {
+    if (wsRef.current) sendSubscribe(wsRef.current);
+  }, [watchlistSymbols]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleAddWatchlist = (e: React.FormEvent) => {
     e.preventDefault();

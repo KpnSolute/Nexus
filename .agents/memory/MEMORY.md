@@ -1,4 +1,6 @@
 - [Orval path+query param collision](orval-path-query-collision.md) — operations with BOTH path params AND query params cause TS2308 collision; fix by moving query params to path params or removing them.
+- [Wouter v3 nested routes](wouter-v3-nested-routes.md) — wildcard parent routes strip path for children; use `<Route component={...} />` (no path) as catch-all to avoid breaking inner Switch.
+- [Orval regeneration](orval-regeneration.md) — run `cd lib/api-spec && npx orval --config orval.config.ts` after any openapi.yaml change; stale hooks crash React silently with no console error.
 - [bcrypt native builds on Replit](bcrypt-native.md) — bcrypt requires native build approval (pnpm approve-builds); use bcryptjs instead for zero-friction pure-JS password hashing.
 - [WebSocket proxy routing](ws-proxy-routing.md) — /ws must be added to the API server artifact.toml paths array or the proxy silently drops WebSocket connections.
 - [Kraken data source](kraken-data-source.md) — market data via Kraken public API (no key); symbol format BTC-USDT in app, maps to Kraken internals; 13 pairs active.

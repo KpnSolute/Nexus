@@ -147,7 +147,9 @@ export default function Market() {
           notes:    data.notes,
         }
       }, {
-        onSuccess: () => {
+        onSuccess: (trade) => {
+          setOrderSuccess(`Paper ${tradeSide.toUpperCase()} filled · ${data.quantity} ${safeSymbol.split('-')[0]} @ ${formatPrice(data.price ?? ticker?.price ?? 0)}`);
+          setTimeout(() => setOrderSuccess(null), 4000);
           reset({ quantity: 0, price: ticker?.price, notes: '' });
           queryClient.invalidateQueries({ queryKey: getListTradesQueryKey() });
           queryClient.invalidateQueries({ queryKey: getGetPortfolioSummaryQueryKey() });

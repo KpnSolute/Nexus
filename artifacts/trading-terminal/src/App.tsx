@@ -1,9 +1,9 @@
-import React from 'react';
-import { Route, Switch, Router as WouterRouter } from 'wouter';
+import React, { useEffect } from 'react';
+import { Route, Switch, Router as WouterRouter, useLocation } from 'wouter';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { AuthProvider, ProtectedRoute } from '@/lib/auth';
+import { AuthProvider, useAuth } from '@/lib/auth';
 import { Layout } from '@/components/layout';
 
 import Login from '@/pages/login';
@@ -18,7 +18,31 @@ import NotFound from '@/pages/not-found';
 
 const queryClient = new QueryClient();
 
-function ProtectedRoutes() {
+/**
+ * Auth-guarded layout shell. Wraps all protected pages.
+ * Rendered as a catch-all Route with no path so Wouter does NOT
+ * strip any path prefix — child routes still see the full pathname.
+ */
+function ProtectedArea() {
+  const { isAuthenticated, isLoading } = useAuth();
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      setLocation('/login');
+    }
+  }, [isLoading, isAuthenticated, setLocation]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background text-foreground font-mono">
+        INITIALIZING TERMINAL...
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) return null;
+
   return (
     <Layout>
       <Switch>
@@ -39,16 +63,11 @@ function Router() {
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
-      <Route path="/">
-        <ProtectedRoute>
-          <ProtectedRoutes />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/:rest*">
-        <ProtectedRoute>
-          <ProtectedRoutes />
-        </ProtectedRoute>
-      </Route>
+      {/*
+        No path → catch-all that does NOT change the routing context.
+        ProtectedArea's inner Switch sees the full pathname unchanged.
+      */}
+      <Route component={ProtectedArea} />
     </Switch>
   );
 }
