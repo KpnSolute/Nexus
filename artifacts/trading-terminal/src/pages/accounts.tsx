@@ -21,7 +21,7 @@ import {
   TrendingUp, TrendingDown, BarChart2, Clock, X,
   ShieldCheck, FlaskConical,
 } from 'lucide-react';
-import { cn, formatPrice } from '@/lib/utils';
+import { cn, formatPrice, formatCompactPrice } from '@/lib/utils';
 
 const connectSchema = z.object({
   label:     z.string().min(1, 'Label is required'),
@@ -76,19 +76,19 @@ function AlpacaPanel() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>
             <div className="text-[10px] text-muted-foreground mb-1">PORTFOLIO VALUE</div>
-            <div className="font-bold text-lg">{formatPrice(alpacaAccount.portfolioValue)}</div>
+            <div className="font-bold text-lg truncate">{formatCompactPrice(alpacaAccount.portfolioValue)}</div>
           </div>
           <div>
             <div className="text-[10px] text-muted-foreground mb-1">EQUITY</div>
-            <div className="font-bold text-lg">{formatPrice(alpacaAccount.equity)}</div>
+            <div className="font-bold text-lg truncate">{formatCompactPrice(alpacaAccount.equity)}</div>
           </div>
           <div>
             <div className="text-[10px] text-muted-foreground mb-1">BUYING POWER</div>
-            <div className="font-bold text-lg text-primary">{formatPrice(alpacaAccount.buyingPower)}</div>
+            <div className="font-bold text-lg text-primary truncate">{formatCompactPrice(alpacaAccount.buyingPower)}</div>
           </div>
           <div>
             <div className="text-[10px] text-muted-foreground mb-1">CASH</div>
-            <div className="font-bold text-lg">{formatPrice(alpacaAccount.cash)}</div>
+            <div className="font-bold text-lg truncate">{formatCompactPrice(alpacaAccount.cash)}</div>
           </div>
         </div>
       </div>
@@ -371,8 +371,8 @@ export default function Accounts() {
                   ? <FlaskConical className="w-5 h-5" />
                   : <ShieldCheck className="w-5 h-5" />}
                 <span>{m === 'paper' ? 'PAPER TRADING' : 'LIVE TRADING'}</span>
-                <span className="text-[9px] font-normal opacity-70">
-                  {m === 'paper' ? 'paper-api.alpaca.markets' : 'api.alpaca.markets'}
+                <span className="text-[9px] font-normal opacity-70 w-full text-center truncate px-1">
+                  {m === 'paper' ? 'paper-api.alpaca' : 'api.alpaca.markets'}
                 </span>
               </label>
             ))}
