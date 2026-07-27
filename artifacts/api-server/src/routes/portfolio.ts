@@ -1,7 +1,9 @@
 import { Router, type IRouter } from "express";
-import { db, tradesTable, usersTable } from "@workspace/db";
+import { db, tradesTable, tradingAccountsTable, usersTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { getTicker } from "../lib/market-data";
+import { getBrokerClient } from "../lib/broker-factory";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -135,6 +137,128 @@ router.get("/portfolio/positions", async (req, res): Promise<void> => {
   }
 
   res.json(result);
+});
+
+router.get("/portfolio/unified", async (req, res): Promise<void> => {
+  if (!requireAuth(req, res)) return;
+  const userId = req.session.userId!;
+
+  // Fetch all active accounts for this user
+  const accounts = await db
+    .select()
+    .from(tradingAccountsTable)
+    .where(and(eq(tradingAccountsTable.userId, userId), eq(tradingAccountsTable.status, "active")));
+
+  const brokers: Array<{
+    exchange: string;
+    label: string;
+    mode: string;
+    equity: number;
+    unrealizedPl: number;
+    positionCount: number;
+  }> = [];
+
+  const allPositions: Array<{
+    exchange: string;
+    symbol: string;
+    side: "long" | "short";
+    qty: number;
+    avgEntryPrice: number;
+    currentPrice: number;
+    marketValue: number;
+    unrealizedPl: number;
+    unrealizedPlPct: number;
+  }> = [];
+
+  await Promise.all(
+    accounts.map(async (account) => {
+      try {
+        let equity = 0;
+        let positions: Array<{
+          symbol: string;
+          side: "long" | "short";
+          qty: number;
+          avgEntryPrice: number;
+          currentPrice: number;
+          marketValue: number;
+          unrealizedPl: number;
+          unrealizedPlPct: number;
+        }> = [];
+
+        if (account.mode === "paper") {
+          // Paper account: aggregate from local trades DB
+          equity = account.balance ? parseFloat(account.balance) : 0;
+          const trades = await db
+            .select()
+            .from(tradesTable)
+            .where(and(eq(tradesTable.userId, userId), eq(tradesTable.mode, "paper")));
+          const map = new Map<string, { qty: number; cost: number }>();
+          for (const t of trades) {
+            const qty = parseFloat(t.quantity);
+            const price = parseFloat(t.price);
+            const cur = map.get(t.symbol) ?? { qty: 0, cost: 0 };
+            if (t.side === "buy") { cur.qty += qty; cur.cost += qty * price; }
+            else { cur.qty -= qty; cur.cost -= qty * price; }
+            map.set(t.symbol, cur);
+          }
+          for (const [symbol, pos] of map) {
+            if (pos.qty <= 0.000001) continue;
+            const ticker = await getTicker(symbol).catch(() => null);
+            const currentPrice = ticker?.price ?? 0;
+            const avgEntry = pos.cost / pos.qty;
+            const marketValue = pos.qty * currentPrice;
+            const unrealizedPl = marketValue - pos.cost;
+            positions.push({ symbol, side: "long", qty: pos.qty, avgEntryPrice: avgEntry, currentPrice, marketValue, unrealizedPl, unrealizedPlPct: pos.cost > 0 ? (unrealizedPl / pos.cost) * 100 : 0 });
+          }
+        } else {
+          // Live account: fetch from broker
+          const client = getBrokerClient(account);
+          const [acctInfo, brokerPositions] = await Promise.all([
+            client.getAccount().catch(() => null),
+            client.getPositions().catch(() => []),
+          ]);
+          equity = acctInfo?.equity ?? 0;
+          positions = brokerPositions;
+        }
+
+        const unrealizedPl = positions.reduce((sum, p) => sum + p.unrealizedPl, 0);
+
+        brokers.push({
+          exchange: account.exchange,
+          label: account.label,
+          mode: account.mode ?? "paper",
+          equity,
+          unrealizedPl,
+          positionCount: positions.length,
+        });
+
+        for (const p of positions) {
+          allPositions.push({ exchange: account.exchange, ...p });
+        }
+      } catch (err) {
+        logger.warn({ err, exchange: account.exchange }, "Unified portfolio: broker fetch failed, skipping");
+        // Skip this broker but continue aggregating others
+        brokers.push({
+          exchange: account.exchange,
+          label: account.label,
+          mode: account.mode ?? "paper",
+          equity: 0,
+          unrealizedPl: 0,
+          positionCount: 0,
+        });
+      }
+    })
+  );
+
+  const totalEquity = brokers.reduce((sum, b) => sum + b.equity, 0);
+  const totalUnrealizedPl = brokers.reduce((sum, b) => sum + b.unrealizedPl, 0);
+
+  res.json({
+    totalEquity: +totalEquity.toFixed(2),
+    totalUnrealizedPl: +totalUnrealizedPl.toFixed(2),
+    brokers,
+    positions: allPositions,
+  });
 });
 
 export default router;

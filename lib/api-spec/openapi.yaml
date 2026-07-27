@@ -425,6 +425,25 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /portfolio/unified:
+    get:
+      operationId: getUnifiedPortfolio
+      tags: [portfolio]
+      summary: Aggregated view across all connected brokers
+      responses:
+        "200":
+          description: Unified portfolio
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnifiedPortfolio"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /accounts:
     get:
       operationId: listAccounts
@@ -1338,6 +1357,64 @@ components:
         filledAt:
           type: ["string", "null"]
           format: date-time
+
+    BrokerAllocation:
+      type: object
+      required: [exchange, label, mode, equity, unrealizedPl, positionCount]
+      properties:
+        exchange:
+          type: string
+        label:
+          type: string
+        mode:
+          type: string
+        equity:
+          type: number
+        unrealizedPl:
+          type: number
+        positionCount:
+          type: integer
+
+    UnifiedPosition:
+      type: object
+      required: [exchange, symbol, side, qty, avgEntryPrice, currentPrice, marketValue, unrealizedPl, unrealizedPlPct]
+      properties:
+        exchange:
+          type: string
+        symbol:
+          type: string
+        side:
+          type: string
+          enum: [long, short]
+        qty:
+          type: number
+        avgEntryPrice:
+          type: number
+        currentPrice:
+          type: number
+        marketValue:
+          type: number
+        unrealizedPl:
+          type: number
+        unrealizedPlPct:
+          type: number
+
+    UnifiedPortfolio:
+      type: object
+      required: [totalEquity, totalUnrealizedPl, brokers, positions]
+      properties:
+        totalEquity:
+          type: number
+        totalUnrealizedPl:
+          type: number
+        brokers:
+          type: array
+          items:
+            $ref: "#/components/schemas/BrokerAllocation"
+        positions:
+          type: array
+          items:
+            $ref: "#/components/schemas/UnifiedPosition"
 
     BrokerOrderInput:
       type: object

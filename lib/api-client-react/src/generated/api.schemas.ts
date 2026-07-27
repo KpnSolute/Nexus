@@ -434,6 +434,42 @@ export interface BrokerOrder {
   filledAt?: string | null;
 }
 
+export interface BrokerAllocation {
+  exchange: string;
+  label: string;
+  mode: string;
+  equity: number;
+  unrealizedPl: number;
+  positionCount: number;
+}
+
+export type UnifiedPositionSide = typeof UnifiedPositionSide[keyof typeof UnifiedPositionSide];
+
+
+export const UnifiedPositionSide = {
+  long: 'long',
+  short: 'short',
+} as const;
+
+export interface UnifiedPosition {
+  exchange: string;
+  symbol: string;
+  side: UnifiedPositionSide;
+  qty: number;
+  avgEntryPrice: number;
+  currentPrice: number;
+  marketValue: number;
+  unrealizedPl: number;
+  unrealizedPlPct: number;
+}
+
+export interface UnifiedPortfolio {
+  totalEquity: number;
+  totalUnrealizedPl: number;
+  brokers: BrokerAllocation[];
+  positions: UnifiedPosition[];
+}
+
 export type BrokerOrderInputSide = typeof BrokerOrderInputSide[keyof typeof BrokerOrderInputSide];
 
 

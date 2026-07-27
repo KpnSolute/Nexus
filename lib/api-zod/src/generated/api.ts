@@ -306,6 +306,34 @@ export const ListPositionsResponse = zod.array(ListPositionsResponseItem)
 
 
 /**
+ * @summary Aggregated view across all connected brokers
+ */
+export const GetUnifiedPortfolioResponse = zod.object({
+  "totalEquity": zod.number(),
+  "totalUnrealizedPl": zod.number(),
+  "brokers": zod.array(zod.object({
+  "exchange": zod.string(),
+  "label": zod.string(),
+  "mode": zod.string(),
+  "equity": zod.number(),
+  "unrealizedPl": zod.number(),
+  "positionCount": zod.number()
+})),
+  "positions": zod.array(zod.object({
+  "exchange": zod.string(),
+  "symbol": zod.string(),
+  "side": zod.enum(['long', 'short']),
+  "qty": zod.number(),
+  "avgEntryPrice": zod.number(),
+  "currentPrice": zod.number(),
+  "marketValue": zod.number(),
+  "unrealizedPl": zod.number(),
+  "unrealizedPlPct": zod.number()
+}))
+})
+
+
+/**
  * @summary List connected trading accounts
  */
 export const ListAccountsResponseItem = zod.object({

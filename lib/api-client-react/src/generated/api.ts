@@ -46,6 +46,7 @@ import type {
   TradeInput,
   TradingAccount,
   TradingModeInput,
+  UnifiedPortfolio,
   WatchlistInput,
   WatchlistItem
 } from './api.schemas';
@@ -1420,6 +1421,83 @@ export function useListPositions<TData = Awaited<ReturnType<typeof listPositions
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListPositionsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetUnifiedPortfolioUrl = () => {
+
+
+
+
+  return `/api/portfolio/unified`
+}
+
+/**
+ * @summary Aggregated view across all connected brokers
+ */
+export const getUnifiedPortfolio = async ( options?: RequestInit): Promise<UnifiedPortfolio> => {
+
+  return customFetch<UnifiedPortfolio>(getGetUnifiedPortfolioUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetUnifiedPortfolioQueryKey = () => {
+    return [
+    `/api/portfolio/unified`
+    ] as const;
+    }
+
+
+export const getGetUnifiedPortfolioQueryOptions = <TData = Awaited<ReturnType<typeof getUnifiedPortfolio>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getUnifiedPortfolio>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetUnifiedPortfolioQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getUnifiedPortfolio>>> = ({ signal }) => getUnifiedPortfolio({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getUnifiedPortfolio>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetUnifiedPortfolioQueryResult = NonNullable<Awaited<ReturnType<typeof getUnifiedPortfolio>>>
+export type GetUnifiedPortfolioQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Aggregated view across all connected brokers
+ */
+
+export function useGetUnifiedPortfolio<TData = Awaited<ReturnType<typeof getUnifiedPortfolio>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getUnifiedPortfolio>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetUnifiedPortfolioQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
