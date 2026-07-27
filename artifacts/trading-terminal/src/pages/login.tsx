@@ -25,8 +25,10 @@ export default function Login() {
 
   const onSubmit = (data: LoginForm) => {
     login.mutate({ data }, {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
+      onSuccess: (user) => {
+        // Populate the cache immediately so ProtectedArea sees isAuthenticated=true
+        // before it renders — avoids the redirect-back-to-login race condition.
+        queryClient.setQueryData(getGetMeQueryKey(), user);
         setLocation('/dashboard');
       }
     });
