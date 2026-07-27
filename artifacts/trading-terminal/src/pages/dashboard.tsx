@@ -11,7 +11,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import { TrendingUp, TrendingDown, Activity, Plus, X, Search, DollarSign, Percent, List } from 'lucide-react';
-import { cn, formatPrice, formatPct, formatNumber } from '@/lib/utils';
+import { cn, formatPrice, formatPct, formatNumber, formatCompactPrice } from '@/lib/utils';
 import type { MarketTicker, WatchlistInput } from '@workspace/api-client-react/src/generated/api.schemas';
 
 export default function Dashboard() {
@@ -118,8 +118,8 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="p-4 border border-border bg-card flex flex-col gap-2 relative overflow-hidden group">
           <div className="text-xs text-muted-foreground">TOTAL VALUE</div>
-          <div className="text-2xl font-bold tracking-tight">
-            {summary ? formatPrice(summary.totalValue) : '---'}
+          <div className="text-2xl font-bold tracking-tight truncate">
+            {summary ? formatCompactPrice(summary.totalValue) : '---'}
           </div>
           <DollarSign className="absolute -bottom-4 -right-4 w-24 h-24 text-muted/10 group-hover:text-primary/10 transition-colors" />
         </div>
@@ -129,7 +129,7 @@ export default function Dashboard() {
             "text-2xl font-bold tracking-tight",
             summary?.totalPnl && summary.totalPnl >= 0 ? "text-up" : summary?.totalPnl && summary.totalPnl < 0 ? "text-down" : "text-foreground"
           )}>
-            {summary ? (summary.totalPnl >= 0 ? '+' : '') + formatPrice(summary.totalPnl) : '---'}
+            {summary ? (summary.totalPnl >= 0 ? '+' : '') + formatCompactPrice(Math.abs(summary.totalPnl)) : '---'}
           </div>
           <Activity className="absolute -bottom-4 -right-4 w-24 h-24 text-muted/10 group-hover:text-primary/10 transition-colors" />
         </div>
@@ -222,7 +222,7 @@ export default function Dashboard() {
                         "text-xl tracking-tight transition-colors duration-300",
                         isUp ? "text-up" : price ? "text-down" : "text-foreground"
                       )}>
-                        {price ? formatPrice(price, 4) : '---'}
+                        {price ? formatCompactPrice(price) : '---'}
                       </div>
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
                         {isLive && <span className="w-1.5 h-1.5 rounded-full bg-up animate-pulse inline-block" />}
@@ -258,7 +258,7 @@ export default function Dashboard() {
                       <div className="font-bold">{ticker.symbol}</div>
                     </div>
                     <div className="text-right">
-                      <div className="text-sm font-bold">{formatPrice(ticker.price, 4)}</div>
+                      <div className="text-sm font-bold">{formatCompactPrice(ticker.price)}</div>
                       <div className={cn(
                         "text-xs",
                         isUp ? "text-up" : "text-down"
