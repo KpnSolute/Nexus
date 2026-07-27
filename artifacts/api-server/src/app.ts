@@ -28,7 +28,19 @@ app.use(
 );
 
 app.use(cors({
-  origin: true,
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile native, curl, etc.)
+    if (!origin) return callback(null, true);
+    // Allow any replit.dev subdomain (covers web terminal + Expo web preview)
+    if (/\.replit\.dev$/.test(origin) || /\.repl\.co$/.test(origin)) {
+      return callback(null, true);
+    }
+    // Allow localhost for local development
+    if (/^https?:\/\/localhost(:\d+)?$/.test(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`CORS: origin ${origin} not allowed`), false);
+  },
   credentials: true,
 }));
 app.use(express.json());
