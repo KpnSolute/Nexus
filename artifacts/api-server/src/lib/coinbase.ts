@@ -159,7 +159,7 @@ export class CoinbaseClient {
   async placeOrder(input: CoinbaseOrderInput): Promise<CoinbaseOrder> {
     const productId = this.toProductId(input.symbol);
     const body: any = {
-      client_order_id: `nexus-${Date.now()}`,
+      client_order_id: `tradora-${Date.now()}`,
       product_id: productId,
       side: input.side.toUpperCase(),
       order_configuration: input.type === "limit"

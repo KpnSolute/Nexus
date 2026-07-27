@@ -53,7 +53,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="flex flex-col">
           <div className="h-14 border-b border-border flex items-center justify-center md:justify-start px-4">
             <Activity className="w-6 h-6 text-primary" />
-            <span className="ml-3 font-bold tracking-widest text-lg hidden md:block">NEXUS</span>
+            <span className="ml-3 font-bold tracking-widest text-lg hidden md:block">TRADORA</span>
           </div>
           <nav className="flex flex-col gap-1 p-2">
             {navItems.map((item) => {

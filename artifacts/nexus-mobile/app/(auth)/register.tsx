@@ -118,7 +118,7 @@ export default function RegisterScreen() {
       >
         <View style={styles.logoRow}>
           <View style={styles.logoDot} />
-          <Text style={styles.logoText}>NEXUS</Text>
+          <Text style={styles.logoText}>TRADORA</Text>
         </View>
         <Text style={styles.subtitle}>Create your account</Text>
 

@@ -142,7 +142,7 @@ export default function DashboardScreen() {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Text style={styles.greeting}>Good morning</Text>
-          <Text style={styles.username}>NEXUS</Text>
+          <Text style={styles.username}>TRADORA</Text>
         </View>
         <View style={styles.modeBadge}>
           <Text style={styles.modeText}>{user?.tradingMode ?? 'paper'}</Text>

@@ -166,7 +166,7 @@ export default function LoginScreen() {
       >
         <View style={styles.logoRow}>
           <View style={styles.logoDot} />
-          <Text style={styles.logoText}>NEXUS</Text>
+          <Text style={styles.logoText}>TRADORA</Text>
         </View>
         <Text style={styles.subtitle}>Algorithmic trading terminal</Text>
 

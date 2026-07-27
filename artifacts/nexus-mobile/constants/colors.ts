@@ -1,10 +1,10 @@
 /**
- * NEXUS Mobile — design tokens derived from the web terminal's dark palette.
+ * Tradora Mobile — design tokens derived from the web terminal's dark palette.
  * HSL values converted from artifacts/trading-terminal/src/index.css.
  * The app forces dark mode; both light and dark keys use the same dark theme.
  */
 
-const nexusDark = {
+const tradoraDark = {
   // Core surfaces
   background: '#080808',        // hsl(0 0% 3%)
   foreground: '#F2F2F2',        // hsl(0 0% 95%)
@@ -49,8 +49,8 @@ const nexusDark = {
 };
 
 const colors = {
-  light: nexusDark,   // app forces dark, light fallback = dark
-  dark: nexusDark,
+  light: tradoraDark,   // app forces dark, light fallback = dark
+  dark: tradoraDark,
   radius: 6,
 };
 

@@ -39,7 +39,7 @@ export default function Login() {
       <div className="w-full max-w-md p-8 border border-border bg-card">
         <div className="flex flex-col items-center mb-8">
           <Activity className="w-12 h-12 text-primary mb-4" />
-          <h1 className="text-2xl font-bold tracking-widest text-foreground">NEXUS TERMINAL</h1>
+          <h1 className="text-2xl font-bold tracking-widest text-foreground">TRADORA</h1>
           <div className="text-xs text-muted-foreground mt-2">AUTHORIZATION REQUIRED</div>
         </div>
 
