@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -13,6 +13,8 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { Zap, Plus, Trash2, CheckCircle, XCircle, Clock, AlertTriangle, Activity } from 'lucide-react';
 import { cn, formatCompactPrice } from '@/lib/utils';
+import { toast } from '@/hooks/use-toast';
+import { useAuth } from '@/lib/auth';
 
 const BROKERS = ['paper', 'alpaca', 'coinbase', 'binance', 'kraken', 'bybit'] as const;
 
@@ -47,6 +49,7 @@ const BROKER_LABELS: Record<string, string> = {
 
 export default function Automations() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const { data: automations, isLoading } = useListAutomations({ query: { refetchInterval: 5000 } });
   const { data: accounts } = useListAccounts();
   const { data: markets } = useListMarkets();
@@ -55,6 +58,70 @@ export default function Automations() {
 
   const connectedBrokers = new Set<string>(['paper']);
   accounts?.filter(a => a.status === 'active').forEach(a => connectedBrokers.add(a.exchange));
+
+  // ── WebSocket: listen for real-time automation events ──────────────────────
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const destroyedRef = useRef(false);
+  const userIdRef = useRef<number | null>(null);
+  userIdRef.current = user?.id ?? null;
+
+  useEffect(() => {
+    destroyedRef.current = false;
+
+    function connect() {
+      if (destroyedRef.current) return;
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        // Subscribe to ticker symbols (empty) so server stores our userId
+        ws.send(JSON.stringify({ type: 'subscribe', symbols: [], userId: userIdRef.current }));
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+
+          if (data.type === 'automation_fired') {
+            queryClient.invalidateQueries({ queryKey: getListAutomationsQueryKey() });
+            toast({
+              title: '⚡ Automation Fired',
+              description: `${data.side?.toUpperCase()} ${data.quantity} ${data.symbol} rule executed successfully via ${data.broker}.`,
+            });
+          }
+
+          if (data.type === 'automation_failed') {
+            queryClient.invalidateQueries({ queryKey: getListAutomationsQueryKey() });
+            toast({
+              title: '✗ Automation Failed',
+              description: `${data.side?.toUpperCase()} ${data.quantity} ${data.symbol} — ${data.failureReason ?? 'Unknown error'}`,
+              variant: 'destructive',
+            });
+          }
+        } catch {
+          // ignore parse errors
+        }
+      };
+
+      ws.onclose = () => {
+        if (!destroyedRef.current) {
+          reconnectTimer.current = setTimeout(connect, 4000);
+        }
+      };
+
+      ws.onerror = () => ws.close();
+    }
+
+    connect();
+
+    return () => {
+      destroyedRef.current = true;
+      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+      wsRef.current?.close();
+    };
+  }, [queryClient]);
 
   const [orderType, setOrderType] = useState<'market' | 'limit'>('market');
 
@@ -157,6 +224,14 @@ export default function Automations() {
                         <><span>·</span><span>FIRED {new Date(rule.firedAt).toLocaleString()}</span></>
                       )}
                     </div>
+
+                    {/* Failure reason */}
+                    {rule.status === 'failed' && rule.failureReason && (
+                      <div className="flex items-center gap-1.5 text-[10px] text-down mt-0.5">
+                        <AlertTriangle className="w-3 h-3 shrink-0" />
+                        <span className="truncate max-w-xs">{rule.failureReason}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 

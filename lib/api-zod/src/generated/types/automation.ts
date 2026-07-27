@@ -25,6 +25,8 @@ export interface Automation {
   broker: AutomationBroker;
   status: AutomationStatus;
   /** @nullable */
+  failureReason?: string | null;
+  /** @nullable */
   firedAt?: Date | null;
   createdAt: Date;
 }

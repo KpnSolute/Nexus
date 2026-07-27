@@ -15,6 +15,7 @@ export const automationsTable = pgTable("automations", {
   limitPrice: numeric("limit_price", { precision: 20, scale: 8 }),
   broker: text("broker").notNull().default("paper"), // paper | alpaca | coinbase | binance | kraken | bybit
   status: text("status").notNull().default("active"), // active | triggered | completed | failed | cancelled
+  failureReason: text("failure_reason"),
   firedAt: timestamp("fired_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

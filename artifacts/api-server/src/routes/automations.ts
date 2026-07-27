@@ -91,11 +91,12 @@ function serializeAutomation(a: any) {
     side:         a.side,
     quantity:     parseFloat(a.quantity),
     orderType:    a.orderType,
-    limitPrice:   a.limitPrice != null ? parseFloat(a.limitPrice) : null,
-    broker:       a.broker,
-    status:       a.status,
-    firedAt:      a.firedAt ?? null,
-    createdAt:    a.createdAt,
+    limitPrice:    a.limitPrice != null ? parseFloat(a.limitPrice) : null,
+    broker:        a.broker,
+    status:        a.status,
+    failureReason: a.failureReason ?? null,
+    firedAt:       a.firedAt ?? null,
+    createdAt:     a.createdAt,
   };
 }
 

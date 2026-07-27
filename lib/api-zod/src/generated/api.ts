@@ -606,6 +606,7 @@ export const ListAutomationsResponseItem = zod.object({
   "limitPrice": zod.number().nullish(),
   "broker": zod.enum(['paper', 'alpaca', 'coinbase', 'binance', 'kraken', 'bybit']),
   "status": zod.enum(['active', 'triggered', 'completed', 'failed', 'cancelled']),
+  "failureReason": zod.string().nullish(),
   "firedAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date()
 })
@@ -641,6 +642,7 @@ export const CreateAutomationResponse = zod.object({
   "limitPrice": zod.number().nullish(),
   "broker": zod.enum(['paper', 'alpaca', 'coinbase', 'binance', 'kraken', 'bybit']),
   "status": zod.enum(['active', 'triggered', 'completed', 'failed', 'cancelled']),
+  "failureReason": zod.string().nullish(),
   "firedAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date()
 })

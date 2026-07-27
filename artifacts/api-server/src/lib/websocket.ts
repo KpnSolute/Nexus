@@ -4,7 +4,9 @@
  */
 import { WebSocketServer, WebSocket } from "ws";
 import { IncomingMessage } from "http";
+import { ServerResponse } from "http";
 import { logger } from "./logger";
+import { sessionMiddleware } from "./session";
 import {
   SUPPORTED_MARKETS,
   updateTickerFromStream,
@@ -22,6 +24,7 @@ import { getTicker } from "./market-data";
 interface SubscribedClient {
   ws: WebSocket;
   symbols: Set<string>;
+  userId: number | null;
 }
 
 const clients: Set<SubscribedClient> = new Set();
@@ -118,12 +121,35 @@ async function fireAutomation(rule: any, currentPrice: number): Promise<void> {
       .where(eq(automationsTable.id, rule.id));
 
     logger.info({ ruleId: rule.id, broker: rule.broker, side: rule.side, qty: rule.quantity }, "Automation completed");
+
+    broadcastToUser(rule.userId, {
+      type: "automation_fired",
+      ruleId: rule.id,
+      symbol: rule.symbol,
+      side: rule.side,
+      quantity: rule.quantity,
+      broker: rule.broker,
+      triggerPrice: rule.triggerPrice,
+      currentPrice,
+    });
   } catch (err: any) {
+    const failureReason: string = err?.message ?? "Unknown error";
     logger.warn({ err, ruleId: rule.id }, "Automation fire failed");
     await db
       .update(automationsTable)
-      .set({ status: "failed" })
+      .set({ status: "failed", failureReason })
       .where(eq(automationsTable.id, rule.id));
+
+    broadcastToUser(rule.userId, {
+      type: "automation_failed",
+      ruleId: rule.id,
+      symbol: rule.symbol,
+      side: rule.side,
+      quantity: rule.quantity,
+      broker: rule.broker,
+      triggerPrice: rule.triggerPrice,
+      failureReason,
+    });
   }
 }
 
@@ -200,6 +226,16 @@ function connectKrakenStream(): void {
 
 // ─── Broadcast helpers ────────────────────────────────────────────────────────
 
+function broadcastToUser(userId: number, payload: object): void {
+  if (clients.size === 0) return;
+  const msg = JSON.stringify(payload);
+  for (const client of clients) {
+    if (client.ws.readyState !== WebSocket.OPEN) continue;
+    if (client.userId !== userId) continue;
+    try { client.ws.send(msg); } catch { /* ignore */ }
+  }
+}
+
 function broadcastTicker(ticker: TickerData): void {
   if (clients.size === 0) return;
   const payload = JSON.stringify({
@@ -237,14 +273,27 @@ async function sendInitialTickers(client: SubscribedClient): Promise<void> {
 
 // ─── Public: create the server-side WebSocket handler ────────────────────────
 
+/** Run express-session middleware against a plain IncomingMessage so we can read req.session.userId. */
+function parseSession(req: IncomingMessage): Promise<void> {
+  return new Promise((resolve) => {
+    // express-session expects (req, res, next); we pass a minimal fake res
+    const fakeRes = new ServerResponse(req);
+    sessionMiddleware(req as any, fakeRes as any, () => resolve());
+  });
+}
+
 export function createWebSocketServer(server: import("http").Server): WebSocketServer {
   connectKrakenStream();
 
   const wss = new WebSocketServer({ server, path: "/ws" });
 
-  wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
-    logger.info({ ip: req.socket.remoteAddress }, "Frontend WS client connected");
-    const client: SubscribedClient = { ws, symbols: new Set() };
+  wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
+    // Authenticate: derive userId from the session cookie, never from the client payload
+    await parseSession(req);
+    const sessionUserId: number | null = (req as any).session?.userId ?? null;
+
+    logger.info({ ip: req.socket.remoteAddress, userId: sessionUserId }, "Frontend WS client connected");
+    const client: SubscribedClient = { ws, symbols: new Set(), userId: sessionUserId };
     clients.add(client);
 
     ws.on("message", (data) => {
@@ -252,7 +301,8 @@ export function createWebSocketServer(server: import("http").Server): WebSocketS
         const msg = JSON.parse(data.toString());
         if (msg.type === "subscribe" && Array.isArray(msg.symbols)) {
           client.symbols = new Set<string>(msg.symbols);
-          logger.info({ symbols: [...client.symbols] }, "Client subscribed");
+          // userId is already set from the session; ignore any client-provided value
+          logger.info({ symbols: [...client.symbols], userId: client.userId }, "Client subscribed");
           sendInitialTickers(client);
         }
         if (msg.type === "unsubscribe" && Array.isArray(msg.symbols)) {

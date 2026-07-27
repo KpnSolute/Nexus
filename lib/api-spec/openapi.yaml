@@ -1465,6 +1465,8 @@ components:
         status:
           type: string
           enum: [active, triggered, completed, failed, cancelled]
+        failureReason:
+          type: ["string", "null"]
         firedAt:
           type: ["string", "null"]
           format: date-time
