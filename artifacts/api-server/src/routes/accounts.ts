@@ -3,6 +3,10 @@ import { db, tradingAccountsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { ConnectAccountBody } from "@workspace/api-zod";
 import { validateAlpacaKeys } from "../lib/alpaca";
+import { validateCoinbaseKeys } from "../lib/coinbase";
+import { validateBinanceKeys } from "../lib/binance";
+import { validateKrakenPrivateKeys } from "../lib/kraken-private";
+import { validateBybitKeys } from "../lib/bybit";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
@@ -31,7 +35,6 @@ function serializeAccount(a: any) {
 router.get("/accounts", async (req, res): Promise<void> => {
   if (!requireAuth(req, res)) return;
   const userId = req.session.userId!;
-
   const accounts = await db
     .select()
     .from(tradingAccountsTable)
@@ -55,18 +58,41 @@ router.post("/accounts", async (req, res): Promise<void> => {
   let balance: string | null = null;
   let status = "active";
 
-  // For Alpaca: validate keys live and pull real account balance
-  if (exchange === "alpaca") {
-    try {
-      const account = await validateAlpacaKeys(apiKey, apiSecret, mode);
-      balance = parseFloat(account.equity).toFixed(2);
-      status = "active";
-      logger.info({ mode, equity: balance }, "Alpaca account connected");
-    } catch (err: any) {
-      logger.warn({ err }, "Alpaca key validation failed");
-      res.status(400).json({ error: `Invalid Alpaca credentials: ${err?.message ?? "check your API key and secret"}` });
-      return;
+  try {
+    switch (exchange) {
+      case "alpaca": {
+        const acct = await validateAlpacaKeys(apiKey, apiSecret, mode);
+        balance = parseFloat(acct.equity).toFixed(2);
+        break;
+      }
+      case "coinbase": {
+        const acct = await validateCoinbaseKeys(apiKey, apiSecret, mode);
+        balance = acct.portfolioValue.toFixed(2);
+        break;
+      }
+      case "binance": {
+        const acct = await validateBinanceKeys(apiKey, apiSecret, mode);
+        balance = acct.cash.toFixed(2);
+        break;
+      }
+      case "kraken": {
+        const acct = await validateKrakenPrivateKeys(apiKey, apiSecret, mode);
+        balance = acct.cash.toFixed(2);
+        break;
+      }
+      case "bybit": {
+        const acct = await validateBybitKeys(apiKey, apiSecret, mode);
+        balance = acct.equity.toFixed(2);
+        break;
+      }
+      default:
+        // Unknown exchange — store but don't validate
+        logger.warn({ exchange }, "Unknown exchange type, storing without validation");
     }
+  } catch (err: any) {
+    logger.warn({ err, exchange }, "Broker key validation failed");
+    res.status(400).json({ error: `Invalid ${exchange} credentials: ${err?.message ?? "check your API key and secret"}` });
+    return;
   }
 
   const [account] = await db
@@ -82,7 +108,6 @@ router.delete("/accounts/:id", async (req, res): Promise<void> => {
   const userId = req.session.userId!;
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
-
   await db
     .delete(tradingAccountsTable)
     .where(and(eq(tradingAccountsTable.id, id), eq(tradingAccountsTable.userId, userId)));

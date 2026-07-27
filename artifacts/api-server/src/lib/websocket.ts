@@ -1,11 +1,6 @@
 /**
  * WebSocket server (frontend clients) + Kraken WS v2 client (live market data).
- *
- * Architecture:
- *  - Kraken WS v2 (wss://ws.kraken.com/v2) → receives ticker snapshots + updates
- *  - updateTickerFromStream() pushes prices into the shared tickerCache in market-data.ts
- *  - Frontend clients connect to /ws, subscribe to symbols, and receive live ticker messages
- *  - Tickers are broadcast immediately when Kraken sends an update (no artificial polling)
+ * Also hosts the automation engine: evaluates price-triggered rules on every tick.
  */
 import { WebSocketServer, WebSocket } from "ws";
 import { IncomingMessage } from "http";
@@ -17,6 +12,10 @@ import {
   getTickers,
 } from "./market-data";
 import type { TickerData } from "./market-data";
+import { db, automationsTable, tradesTable, tradingAccountsTable } from "@workspace/db";
+import { eq, and } from "drizzle-orm";
+import { getBrokerClient } from "./broker-factory";
+import { getTicker } from "./market-data";
 
 // ─── Frontend client subscriptions ───────────────────────────────────────────
 
@@ -27,9 +26,108 @@ interface SubscribedClient {
 
 const clients: Set<SubscribedClient> = new Set();
 
+// ─── Automation engine ────────────────────────────────────────────────────────
+
+// Prevent double-firing a rule while it's being processed
+const firingSet = new Set<number>();
+
+async function evaluateAutomations(symbol: string, price: number): Promise<void> {
+  try {
+    const rules = await db
+      .select()
+      .from(automationsTable)
+      .where(and(eq(automationsTable.symbol, symbol), eq(automationsTable.status, "active")));
+
+    for (const rule of rules) {
+      if (firingSet.has(rule.id)) continue;
+
+      const trigger = parseFloat(rule.triggerPrice);
+      const conditionMet =
+        (rule.condition === "gte" && price >= trigger) ||
+        (rule.condition === "lte" && price <= trigger);
+
+      if (!conditionMet) continue;
+
+      firingSet.add(rule.id);
+      logger.info({ ruleId: rule.id, symbol, price, trigger, condition: rule.condition }, "Automation triggered");
+
+      // Fire async — don't block the ticker broadcast
+      fireAutomation(rule, price).finally(() => firingSet.delete(rule.id));
+    }
+  } catch (err) {
+    logger.warn({ err }, "Automation evaluation error");
+  }
+}
+
+async function fireAutomation(rule: any, currentPrice: number): Promise<void> {
+  // Mark triggered immediately
+  await db
+    .update(automationsTable)
+    .set({ status: "triggered", firedAt: new Date() })
+    .where(eq(automationsTable.id, rule.id));
+
+  try {
+    const qty = parseFloat(rule.quantity);
+    const limitPrice = rule.limitPrice ? parseFloat(rule.limitPrice) : undefined;
+
+    if (rule.broker === "paper") {
+      // Paper: insert into local trades table
+      const price = limitPrice ?? currentPrice;
+      await db.insert(tradesTable).values({
+        userId: rule.userId,
+        symbol: rule.symbol,
+        side: rule.side,
+        quantity: String(qty),
+        price: String(price),
+        total: String(qty * price),
+        status: "filled",
+        mode: "paper",
+        notes: `Auto: ${rule.condition === "gte" ? "≥" : "≤"} $${parseFloat(rule.triggerPrice).toFixed(2)}`,
+        filledAt: new Date(),
+      });
+    } else {
+      // Live: find user's connected broker account and place real order
+      const rows = await db
+        .select()
+        .from(tradingAccountsTable)
+        .where(
+          and(
+            eq(tradingAccountsTable.userId, rule.userId),
+            eq(tradingAccountsTable.exchange, rule.broker),
+            eq(tradingAccountsTable.status, "active"),
+          ),
+        )
+        .limit(1);
+
+      if (rows.length === 0) throw new Error(`No active ${rule.broker} account`);
+
+      const accountRow = rows[0];
+      const client = getBrokerClient(accountRow);
+      await client.placeOrder({
+        symbol: rule.symbol,
+        side: rule.side,
+        type: rule.orderType as "market" | "limit",
+        qty,
+        limitPrice,
+      });
+    }
+
+    await db
+      .update(automationsTable)
+      .set({ status: "completed" })
+      .where(eq(automationsTable.id, rule.id));
+
+    logger.info({ ruleId: rule.id, broker: rule.broker, side: rule.side, qty: rule.quantity }, "Automation completed");
+  } catch (err: any) {
+    logger.warn({ err, ruleId: rule.id }, "Automation fire failed");
+    await db
+      .update(automationsTable)
+      .set({ status: "failed" })
+      .where(eq(automationsTable.id, rule.id));
+  }
+}
+
 // ─── Kraken WebSocket v2 public stream ────────────────────────────────────────
-// URL: wss://ws.kraken.com/v2
-// Auth: none required for public market data
 
 const KRAKEN_WS_URL = "wss://ws.kraken.com/v2";
 
@@ -45,7 +143,6 @@ function connectKrakenStream(): void {
 
   ws.on("open", () => {
     logger.info("Kraken WS v2 connected — subscribing to live tickers");
-    // Subscribe to ticker channel for all supported markets
     const symbols = SUPPORTED_MARKETS.map(m => m.wsSymbol);
     ws.send(JSON.stringify({
       method: "subscribe",
@@ -56,22 +153,14 @@ function connectKrakenStream(): void {
   ws.on("message", (raw: Buffer) => {
     try {
       const msg = JSON.parse(raw.toString());
-
-      // Ignore heartbeats, status, and subscription confirmations
       if (!msg.channel || msg.channel !== "ticker" || !msg.data) return;
       if (msg.type !== "snapshot" && msg.type !== "update") return;
 
       const now = new Date().toISOString();
 
       for (const d of msg.data as Array<{
-        symbol: string;
-        last: number;
-        change: number;
-        change_pct: number;
-        high: number;
-        low: number;
-        volume: number;
-        vwap?: number;
+        symbol: string; last: number; change: number; change_pct: number;
+        high: number; low: number; volume: number; vwap?: number;
       }>) {
         const ourSymbol = fromKrakenWsSymbol(d.symbol);
         if (!ourSymbol) continue;
@@ -88,11 +177,11 @@ function connectKrakenStream(): void {
           updatedAt:    now,
         };
 
-        // Update shared REST cache
         updateTickerFromStream(ticker);
-
-        // Immediately forward to subscribed frontend clients
         broadcastTicker(ticker);
+
+        // Automation engine — non-blocking
+        evaluateAutomations(ourSymbol, d.last).catch(() => {});
       }
     } catch {
       // ignore parse errors
@@ -138,14 +227,9 @@ async function sendInitialTickers(client: SubscribedClient): Promise<void> {
     if (client.ws.readyState !== WebSocket.OPEN) continue;
     try {
       client.ws.send(JSON.stringify({
-        type:         "ticker",
-        symbol:       ticker.symbol,
-        price:        ticker.price,
-        change24h:    ticker.change24h,
-        changePct24h: ticker.changePct24h,
-        high24h:      ticker.high24h,
-        low24h:       ticker.low24h,
-        volume24h:    ticker.volume24h,
+        type: "ticker", symbol: ticker.symbol, price: ticker.price,
+        change24h: ticker.change24h, changePct24h: ticker.changePct24h,
+        high24h: ticker.high24h, low24h: ticker.low24h, volume24h: ticker.volume24h,
       }));
     } catch { /* ignore */ }
   }
@@ -154,14 +238,12 @@ async function sendInitialTickers(client: SubscribedClient): Promise<void> {
 // ─── Public: create the server-side WebSocket handler ────────────────────────
 
 export function createWebSocketServer(server: import("http").Server): WebSocketServer {
-  // Start Kraken stream connection
   connectKrakenStream();
 
   const wss = new WebSocketServer({ server, path: "/ws" });
 
   wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
     logger.info({ ip: req.socket.remoteAddress }, "Frontend WS client connected");
-
     const client: SubscribedClient = { ws, symbols: new Set() };
     clients.add(client);
 
@@ -171,7 +253,6 @@ export function createWebSocketServer(server: import("http").Server): WebSocketS
         if (msg.type === "subscribe" && Array.isArray(msg.symbols)) {
           client.symbols = new Set<string>(msg.symbols);
           logger.info({ symbols: [...client.symbols] }, "Client subscribed");
-          // Send cached prices immediately on subscription
           sendInitialTickers(client);
         }
         if (msg.type === "unsubscribe" && Array.isArray(msg.symbols)) {
@@ -182,15 +263,8 @@ export function createWebSocketServer(server: import("http").Server): WebSocketS
       }
     });
 
-    ws.on("close", () => {
-      clients.delete(client);
-      logger.info("Frontend WS client disconnected");
-    });
-
-    ws.on("error", (err) => {
-      logger.warn({ err }, "Frontend WS error");
-      clients.delete(client);
-    });
+    ws.on("close", () => { clients.delete(client); logger.info("Frontend WS client disconnected"); });
+    ws.on("error", (err) => { logger.warn({ err }, "Frontend WS error"); clients.delete(client); });
   });
 
   return wss;

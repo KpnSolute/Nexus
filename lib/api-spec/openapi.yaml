@@ -26,6 +26,10 @@ tags:
     description: User settings
   - name: alpaca
     description: Alpaca brokerage integration
+  - name: broker
+    description: Generic multi-broker endpoints
+  - name: automations
+    description: Price-triggered automation rules
 paths:
   /healthz:
     get:
@@ -633,6 +637,211 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /broker-accounts/{exchange}/info:
+    get:
+      operationId: getBrokerAccount
+      tags: [broker]
+      summary: Get account info for a connected broker
+      parameters:
+        - name: exchange
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Broker account info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrokerAccount"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: No account connected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /broker-accounts/{exchange}/positions:
+    get:
+      operationId: getBrokerPositions
+      tags: [broker]
+      summary: Get open positions for a connected broker
+      parameters:
+        - name: exchange
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Positions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BrokerPosition"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /broker-accounts/{exchange}/orders:
+    get:
+      operationId: getBrokerOrders
+      tags: [broker]
+      summary: Get recent orders for a connected broker
+      parameters:
+        - name: exchange
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BrokerOrder"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: placeBrokerOrder
+      tags: [broker]
+      summary: Place an order through a connected broker
+      parameters:
+        - name: exchange
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BrokerOrderInput"
+      responses:
+        "201":
+          description: Order placed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrokerOrder"
+        "400":
+          description: Order failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /broker-accounts/{exchange}/orders/{orderId}:
+    delete:
+      operationId: cancelBrokerOrder
+      tags: [broker]
+      summary: Cancel an order through a connected broker
+      parameters:
+        - name: exchange
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Cancelled
+        "400":
+          description: Cancel failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /automations:
+    get:
+      operationId: listAutomations
+      tags: [automations]
+      summary: List user automation rules
+      responses:
+        "200":
+          description: Automations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Automation"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createAutomation
+      tags: [automations]
+      summary: Create an automation rule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AutomationInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Automation"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /automations/{id}:
+    delete:
+      operationId: deleteAutomation
+      tags: [automations]
+      summary: Cancel/delete an automation rule
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /settings/trading-mode:
     patch:
       operationId: updateTradingMode
@@ -1058,3 +1267,157 @@ components:
         mode:
           type: string
           enum: [paper, real]
+
+    BrokerAccount:
+      type: object
+      required: [equity, cash, buyingPower, portfolioValue, currency, mode]
+      properties:
+        equity:
+          type: number
+        cash:
+          type: number
+        buyingPower:
+          type: number
+        portfolioValue:
+          type: number
+        currency:
+          type: string
+        mode:
+          type: string
+        exchange:
+          type: string
+
+    BrokerPosition:
+      type: object
+      required: [symbol, side, qty, avgEntryPrice, currentPrice, marketValue, unrealizedPl, unrealizedPlPct]
+      properties:
+        symbol:
+          type: string
+        side:
+          type: string
+          enum: [long, short]
+        qty:
+          type: number
+        avgEntryPrice:
+          type: number
+        currentPrice:
+          type: number
+        marketValue:
+          type: number
+        unrealizedPl:
+          type: number
+        unrealizedPlPct:
+          type: number
+
+    BrokerOrder:
+      type: object
+      required: [id, symbol, side, type, qty, filledQty, status, submittedAt]
+      properties:
+        id:
+          type: string
+        symbol:
+          type: string
+        side:
+          type: string
+          enum: [buy, sell]
+        type:
+          type: string
+        qty:
+          type: number
+        filledQty:
+          type: number
+        filledAvgPrice:
+          type: ["number", "null"]
+        status:
+          type: string
+        limitPrice:
+          type: ["number", "null"]
+        submittedAt:
+          type: string
+          format: date-time
+        filledAt:
+          type: ["string", "null"]
+          format: date-time
+
+    BrokerOrderInput:
+      type: object
+      required: [symbol, side, qty]
+      properties:
+        symbol:
+          type: string
+        side:
+          type: string
+          enum: [buy, sell]
+        qty:
+          type: number
+        type:
+          type: string
+          enum: [market, limit]
+          default: market
+        limitPrice:
+          type: number
+
+    Automation:
+      type: object
+      required: [id, userId, symbol, condition, triggerPrice, side, quantity, orderType, broker, status, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        symbol:
+          type: string
+        condition:
+          type: string
+          enum: [gte, lte]
+        triggerPrice:
+          type: number
+        side:
+          type: string
+          enum: [buy, sell]
+        quantity:
+          type: number
+        orderType:
+          type: string
+          enum: [market, limit]
+        limitPrice:
+          type: ["number", "null"]
+        broker:
+          type: string
+          enum: [paper, alpaca, coinbase, binance, kraken, bybit]
+        status:
+          type: string
+          enum: [active, triggered, completed, failed, cancelled]
+        firedAt:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    AutomationInput:
+      type: object
+      required: [symbol, condition, triggerPrice, side, quantity]
+      properties:
+        symbol:
+          type: string
+        condition:
+          type: string
+          enum: [gte, lte]
+        triggerPrice:
+          type: number
+        side:
+          type: string
+          enum: [buy, sell]
+        quantity:
+          type: number
+        orderType:
+          type: string
+          enum: [market, limit]
+          default: market
+        limitPrice:
+          type: number
+        broker:
+          type: string
+          enum: [paper, alpaca, coinbase, binance, kraken, bybit]
+          default: paper

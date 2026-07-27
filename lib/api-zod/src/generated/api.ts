@@ -460,6 +460,175 @@ export const CancelAlpacaOrderResponse = zod.void()
 
 
 /**
+ * @summary Get account info for a connected broker
+ */
+export const GetBrokerAccountParams = zod.object({
+  "exchange": zod.coerce.string()
+})
+
+export const GetBrokerAccountResponse = zod.object({
+  "equity": zod.number(),
+  "cash": zod.number(),
+  "buyingPower": zod.number(),
+  "portfolioValue": zod.number(),
+  "currency": zod.string(),
+  "mode": zod.string(),
+  "exchange": zod.string().optional()
+})
+
+
+/**
+ * @summary Get open positions for a connected broker
+ */
+export const GetBrokerPositionsParams = zod.object({
+  "exchange": zod.coerce.string()
+})
+
+export const GetBrokerPositionsResponseItem = zod.object({
+  "symbol": zod.string(),
+  "side": zod.enum(['long', 'short']),
+  "qty": zod.number(),
+  "avgEntryPrice": zod.number(),
+  "currentPrice": zod.number(),
+  "marketValue": zod.number(),
+  "unrealizedPl": zod.number(),
+  "unrealizedPlPct": zod.number()
+})
+export const GetBrokerPositionsResponse = zod.array(GetBrokerPositionsResponseItem)
+
+
+/**
+ * @summary Get recent orders for a connected broker
+ */
+export const GetBrokerOrdersParams = zod.object({
+  "exchange": zod.coerce.string()
+})
+
+export const GetBrokerOrdersResponseItem = zod.object({
+  "id": zod.string(),
+  "symbol": zod.string(),
+  "side": zod.enum(['buy', 'sell']),
+  "type": zod.string(),
+  "qty": zod.number(),
+  "filledQty": zod.number(),
+  "filledAvgPrice": zod.number().nullish(),
+  "status": zod.string(),
+  "limitPrice": zod.number().nullish(),
+  "submittedAt": zod.coerce.date(),
+  "filledAt": zod.coerce.date().nullish()
+})
+export const GetBrokerOrdersResponse = zod.array(GetBrokerOrdersResponseItem)
+
+
+/**
+ * @summary Place an order through a connected broker
+ */
+export const PlaceBrokerOrderParams = zod.object({
+  "exchange": zod.coerce.string()
+})
+
+export const placeBrokerOrderBodyTypeDefault = `market`;
+
+export const PlaceBrokerOrderBody = zod.object({
+  "symbol": zod.string(),
+  "side": zod.enum(['buy', 'sell']),
+  "qty": zod.number(),
+  "type": zod.enum(['market', 'limit']).default(placeBrokerOrderBodyTypeDefault),
+  "limitPrice": zod.number().optional()
+})
+
+export const PlaceBrokerOrderResponse = zod.object({
+  "id": zod.string(),
+  "symbol": zod.string(),
+  "side": zod.enum(['buy', 'sell']),
+  "type": zod.string(),
+  "qty": zod.number(),
+  "filledQty": zod.number(),
+  "filledAvgPrice": zod.number().nullish(),
+  "status": zod.string(),
+  "limitPrice": zod.number().nullish(),
+  "submittedAt": zod.coerce.date(),
+  "filledAt": zod.coerce.date().nullish()
+})
+
+
+/**
+ * @summary Cancel an order through a connected broker
+ */
+export const CancelBrokerOrderParams = zod.object({
+  "exchange": zod.coerce.string(),
+  "orderId": zod.coerce.string()
+})
+
+export const CancelBrokerOrderResponse = zod.void()
+
+
+/**
+ * @summary List user automation rules
+ */
+export const ListAutomationsResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "symbol": zod.string(),
+  "condition": zod.enum(['gte', 'lte']),
+  "triggerPrice": zod.number(),
+  "side": zod.enum(['buy', 'sell']),
+  "quantity": zod.number(),
+  "orderType": zod.enum(['market', 'limit']),
+  "limitPrice": zod.number().nullish(),
+  "broker": zod.enum(['paper', 'alpaca', 'coinbase', 'binance', 'kraken', 'bybit']),
+  "status": zod.enum(['active', 'triggered', 'completed', 'failed', 'cancelled']),
+  "firedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+})
+export const ListAutomationsResponse = zod.array(ListAutomationsResponseItem)
+
+
+/**
+ * @summary Create an automation rule
+ */
+export const createAutomationBodyOrderTypeDefault = `market`;
+export const createAutomationBodyBrokerDefault = `paper`;
+
+export const CreateAutomationBody = zod.object({
+  "symbol": zod.string(),
+  "condition": zod.enum(['gte', 'lte']),
+  "triggerPrice": zod.number(),
+  "side": zod.enum(['buy', 'sell']),
+  "quantity": zod.number(),
+  "orderType": zod.enum(['market', 'limit']).default(createAutomationBodyOrderTypeDefault),
+  "limitPrice": zod.number().optional(),
+  "broker": zod.enum(['paper', 'alpaca', 'coinbase', 'binance', 'kraken', 'bybit']).default(createAutomationBodyBrokerDefault)
+})
+
+export const CreateAutomationResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "symbol": zod.string(),
+  "condition": zod.enum(['gte', 'lte']),
+  "triggerPrice": zod.number(),
+  "side": zod.enum(['buy', 'sell']),
+  "quantity": zod.number(),
+  "orderType": zod.enum(['market', 'limit']),
+  "limitPrice": zod.number().nullish(),
+  "broker": zod.enum(['paper', 'alpaca', 'coinbase', 'binance', 'kraken', 'bybit']),
+  "status": zod.enum(['active', 'triggered', 'completed', 'failed', 'cancelled']),
+  "firedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Cancel/delete an automation rule
+ */
+export const DeleteAutomationParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteAutomationResponse = zod.void()
+
+
+/**
  * @summary Toggle paper or real trading mode
  */
 export const UpdateTradingModeBody = zod.object({

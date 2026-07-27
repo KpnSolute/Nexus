@@ -27,6 +27,12 @@ import type {
   AlpacaPosition,
   AuthCredentials,
   AuthUser,
+  Automation,
+  AutomationInput,
+  BrokerAccount,
+  BrokerOrder,
+  BrokerOrderInput,
+  BrokerPosition,
   Candle,
   ErrorResponse,
   HealthStatus,
@@ -2023,6 +2029,601 @@ export const useCancelAlpacaOrder = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getCancelAlpacaOrderMutationOptions(options));
+    }
+
+export const getGetBrokerAccountUrl = (exchange: string,) => {
+
+
+
+
+  return `/api/broker-accounts/${exchange}/info`
+}
+
+/**
+ * @summary Get account info for a connected broker
+ */
+export const getBrokerAccount = async (exchange: string, options?: RequestInit): Promise<BrokerAccount> => {
+
+  return customFetch<BrokerAccount>(getGetBrokerAccountUrl(exchange),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBrokerAccountQueryKey = (exchange: string,) => {
+    return [
+    `/api/broker-accounts/${exchange}/info`
+    ] as const;
+    }
+
+
+export const getGetBrokerAccountQueryOptions = <TData = Awaited<ReturnType<typeof getBrokerAccount>>, TError = ErrorType<ErrorResponse>>(exchange: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBrokerAccount>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBrokerAccountQueryKey(exchange);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBrokerAccount>>> = ({ signal }) => getBrokerAccount(exchange, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: exchange !== null && exchange !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBrokerAccount>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBrokerAccountQueryResult = NonNullable<Awaited<ReturnType<typeof getBrokerAccount>>>
+export type GetBrokerAccountQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get account info for a connected broker
+ */
+
+export function useGetBrokerAccount<TData = Awaited<ReturnType<typeof getBrokerAccount>>, TError = ErrorType<ErrorResponse>>(
+ exchange: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBrokerAccount>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBrokerAccountQueryOptions(exchange,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetBrokerPositionsUrl = (exchange: string,) => {
+
+
+
+
+  return `/api/broker-accounts/${exchange}/positions`
+}
+
+/**
+ * @summary Get open positions for a connected broker
+ */
+export const getBrokerPositions = async (exchange: string, options?: RequestInit): Promise<BrokerPosition[]> => {
+
+  return customFetch<BrokerPosition[]>(getGetBrokerPositionsUrl(exchange),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBrokerPositionsQueryKey = (exchange: string,) => {
+    return [
+    `/api/broker-accounts/${exchange}/positions`
+    ] as const;
+    }
+
+
+export const getGetBrokerPositionsQueryOptions = <TData = Awaited<ReturnType<typeof getBrokerPositions>>, TError = ErrorType<ErrorResponse>>(exchange: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBrokerPositions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBrokerPositionsQueryKey(exchange);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBrokerPositions>>> = ({ signal }) => getBrokerPositions(exchange, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: exchange !== null && exchange !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBrokerPositions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBrokerPositionsQueryResult = NonNullable<Awaited<ReturnType<typeof getBrokerPositions>>>
+export type GetBrokerPositionsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get open positions for a connected broker
+ */
+
+export function useGetBrokerPositions<TData = Awaited<ReturnType<typeof getBrokerPositions>>, TError = ErrorType<ErrorResponse>>(
+ exchange: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBrokerPositions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBrokerPositionsQueryOptions(exchange,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetBrokerOrdersUrl = (exchange: string,) => {
+
+
+
+
+  return `/api/broker-accounts/${exchange}/orders`
+}
+
+/**
+ * @summary Get recent orders for a connected broker
+ */
+export const getBrokerOrders = async (exchange: string, options?: RequestInit): Promise<BrokerOrder[]> => {
+
+  return customFetch<BrokerOrder[]>(getGetBrokerOrdersUrl(exchange),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBrokerOrdersQueryKey = (exchange: string,) => {
+    return [
+    `/api/broker-accounts/${exchange}/orders`
+    ] as const;
+    }
+
+
+export const getGetBrokerOrdersQueryOptions = <TData = Awaited<ReturnType<typeof getBrokerOrders>>, TError = ErrorType<ErrorResponse>>(exchange: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBrokerOrders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBrokerOrdersQueryKey(exchange);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBrokerOrders>>> = ({ signal }) => getBrokerOrders(exchange, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: exchange !== null && exchange !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBrokerOrders>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBrokerOrdersQueryResult = NonNullable<Awaited<ReturnType<typeof getBrokerOrders>>>
+export type GetBrokerOrdersQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get recent orders for a connected broker
+ */
+
+export function useGetBrokerOrders<TData = Awaited<ReturnType<typeof getBrokerOrders>>, TError = ErrorType<ErrorResponse>>(
+ exchange: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBrokerOrders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBrokerOrdersQueryOptions(exchange,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPlaceBrokerOrderUrl = (exchange: string,) => {
+
+
+
+
+  return `/api/broker-accounts/${exchange}/orders`
+}
+
+/**
+ * @summary Place an order through a connected broker
+ */
+export const placeBrokerOrder = async (exchange: string,
+    brokerOrderInput: BrokerOrderInput, options?: RequestInit): Promise<BrokerOrder> => {
+
+  return customFetch<BrokerOrder>(getPlaceBrokerOrderUrl(exchange),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(brokerOrderInput)
+  }
+);}
+
+
+
+
+
+export const getPlaceBrokerOrderMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof placeBrokerOrder>>, TError,{exchange: string;data: BodyType<BrokerOrderInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof placeBrokerOrder>>, TError,{exchange: string;data: BodyType<BrokerOrderInput>}, TContext> => {
+
+const mutationKey = ['placeBrokerOrder'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof placeBrokerOrder>>, {exchange: string;data: BodyType<BrokerOrderInput>}> = (props) => {
+          const {exchange,data} = props ?? {};
+
+          return  placeBrokerOrder(exchange,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PlaceBrokerOrderMutationResult = NonNullable<Awaited<ReturnType<typeof placeBrokerOrder>>>
+    export type PlaceBrokerOrderMutationBody = BodyType<BrokerOrderInput>
+    export type PlaceBrokerOrderMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Place an order through a connected broker
+ */
+export const usePlaceBrokerOrder = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof placeBrokerOrder>>, TError,{exchange: string;data: BodyType<BrokerOrderInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof placeBrokerOrder>>,
+        TError,
+        {exchange: string;data: BodyType<BrokerOrderInput>},
+        TContext
+      > => {
+      return useMutation(getPlaceBrokerOrderMutationOptions(options));
+    }
+
+export const getCancelBrokerOrderUrl = (exchange: string,
+    orderId: string,) => {
+
+
+
+
+  return `/api/broker-accounts/${exchange}/orders/${orderId}`
+}
+
+/**
+ * @summary Cancel an order through a connected broker
+ */
+export const cancelBrokerOrder = async (exchange: string,
+    orderId: string, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getCancelBrokerOrderUrl(exchange,orderId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getCancelBrokerOrderMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelBrokerOrder>>, TError,{exchange: string;orderId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelBrokerOrder>>, TError,{exchange: string;orderId: string}, TContext> => {
+
+const mutationKey = ['cancelBrokerOrder'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelBrokerOrder>>, {exchange: string;orderId: string}> = (props) => {
+          const {exchange,orderId} = props ?? {};
+
+          return  cancelBrokerOrder(exchange,orderId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelBrokerOrderMutationResult = NonNullable<Awaited<ReturnType<typeof cancelBrokerOrder>>>
+
+    export type CancelBrokerOrderMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Cancel an order through a connected broker
+ */
+export const useCancelBrokerOrder = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelBrokerOrder>>, TError,{exchange: string;orderId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof cancelBrokerOrder>>,
+        TError,
+        {exchange: string;orderId: string},
+        TContext
+      > => {
+      return useMutation(getCancelBrokerOrderMutationOptions(options));
+    }
+
+export const getListAutomationsUrl = () => {
+
+
+
+
+  return `/api/automations`
+}
+
+/**
+ * @summary List user automation rules
+ */
+export const listAutomations = async ( options?: RequestInit): Promise<Automation[]> => {
+
+  return customFetch<Automation[]>(getListAutomationsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAutomationsQueryKey = () => {
+    return [
+    `/api/automations`
+    ] as const;
+    }
+
+
+export const getListAutomationsQueryOptions = <TData = Awaited<ReturnType<typeof listAutomations>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAutomations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAutomationsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAutomations>>> = ({ signal }) => listAutomations({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAutomations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAutomationsQueryResult = NonNullable<Awaited<ReturnType<typeof listAutomations>>>
+export type ListAutomationsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List user automation rules
+ */
+
+export function useListAutomations<TData = Awaited<ReturnType<typeof listAutomations>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAutomations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAutomationsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateAutomationUrl = () => {
+
+
+
+
+  return `/api/automations`
+}
+
+/**
+ * @summary Create an automation rule
+ */
+export const createAutomation = async (automationInput: AutomationInput, options?: RequestInit): Promise<Automation> => {
+
+  return customFetch<Automation>(getCreateAutomationUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(automationInput)
+  }
+);}
+
+
+
+
+
+export const getCreateAutomationMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAutomation>>, TError,{data: BodyType<AutomationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAutomation>>, TError,{data: BodyType<AutomationInput>}, TContext> => {
+
+const mutationKey = ['createAutomation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAutomation>>, {data: BodyType<AutomationInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createAutomation(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAutomationMutationResult = NonNullable<Awaited<ReturnType<typeof createAutomation>>>
+    export type CreateAutomationMutationBody = BodyType<AutomationInput>
+    export type CreateAutomationMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create an automation rule
+ */
+export const useCreateAutomation = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAutomation>>, TError,{data: BodyType<AutomationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAutomation>>,
+        TError,
+        {data: BodyType<AutomationInput>},
+        TContext
+      > => {
+      return useMutation(getCreateAutomationMutationOptions(options));
+    }
+
+export const getDeleteAutomationUrl = (id: number,) => {
+
+
+
+
+  return `/api/automations/${id}`
+}
+
+/**
+ * @summary Cancel/delete an automation rule
+ */
+export const deleteAutomation = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteAutomationUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteAutomationMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAutomation>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteAutomation>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteAutomation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAutomation>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteAutomation(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteAutomationMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAutomation>>>
+
+    export type DeleteAutomationMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Cancel/delete an automation rule
+ */
+export const useDeleteAutomation = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAutomation>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteAutomation>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteAutomationMutationOptions(options));
     }
 
 export const getUpdateTradingModeUrl = () => {

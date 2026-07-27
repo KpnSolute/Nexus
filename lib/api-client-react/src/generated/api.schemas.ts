@@ -380,6 +380,196 @@ export interface TradingModeInput {
   mode: TradingModeInputMode;
 }
 
+export interface BrokerAccount {
+  equity: number;
+  cash: number;
+  buyingPower: number;
+  portfolioValue: number;
+  currency: string;
+  mode: string;
+  exchange?: string;
+}
+
+export type BrokerPositionSide = typeof BrokerPositionSide[keyof typeof BrokerPositionSide];
+
+
+export const BrokerPositionSide = {
+  long: 'long',
+  short: 'short',
+} as const;
+
+export interface BrokerPosition {
+  symbol: string;
+  side: BrokerPositionSide;
+  qty: number;
+  avgEntryPrice: number;
+  currentPrice: number;
+  marketValue: number;
+  unrealizedPl: number;
+  unrealizedPlPct: number;
+}
+
+export type BrokerOrderSide = typeof BrokerOrderSide[keyof typeof BrokerOrderSide];
+
+
+export const BrokerOrderSide = {
+  buy: 'buy',
+  sell: 'sell',
+} as const;
+
+export interface BrokerOrder {
+  id: string;
+  symbol: string;
+  side: BrokerOrderSide;
+  type: string;
+  qty: number;
+  filledQty: number;
+  /** @nullable */
+  filledAvgPrice?: number | null;
+  status: string;
+  /** @nullable */
+  limitPrice?: number | null;
+  submittedAt: string;
+  /** @nullable */
+  filledAt?: string | null;
+}
+
+export type BrokerOrderInputSide = typeof BrokerOrderInputSide[keyof typeof BrokerOrderInputSide];
+
+
+export const BrokerOrderInputSide = {
+  buy: 'buy',
+  sell: 'sell',
+} as const;
+
+export type BrokerOrderInputType = typeof BrokerOrderInputType[keyof typeof BrokerOrderInputType];
+
+
+export const BrokerOrderInputType = {
+  market: 'market',
+  limit: 'limit',
+} as const;
+
+export interface BrokerOrderInput {
+  symbol: string;
+  side: BrokerOrderInputSide;
+  qty: number;
+  type?: BrokerOrderInputType;
+  limitPrice?: number;
+}
+
+export type AutomationCondition = typeof AutomationCondition[keyof typeof AutomationCondition];
+
+
+export const AutomationCondition = {
+  gte: 'gte',
+  lte: 'lte',
+} as const;
+
+export type AutomationSide = typeof AutomationSide[keyof typeof AutomationSide];
+
+
+export const AutomationSide = {
+  buy: 'buy',
+  sell: 'sell',
+} as const;
+
+export type AutomationOrderType = typeof AutomationOrderType[keyof typeof AutomationOrderType];
+
+
+export const AutomationOrderType = {
+  market: 'market',
+  limit: 'limit',
+} as const;
+
+export type AutomationBroker = typeof AutomationBroker[keyof typeof AutomationBroker];
+
+
+export const AutomationBroker = {
+  paper: 'paper',
+  alpaca: 'alpaca',
+  coinbase: 'coinbase',
+  binance: 'binance',
+  kraken: 'kraken',
+  bybit: 'bybit',
+} as const;
+
+export type AutomationStatus = typeof AutomationStatus[keyof typeof AutomationStatus];
+
+
+export const AutomationStatus = {
+  active: 'active',
+  triggered: 'triggered',
+  completed: 'completed',
+  failed: 'failed',
+  cancelled: 'cancelled',
+} as const;
+
+export interface Automation {
+  id: number;
+  userId: number;
+  symbol: string;
+  condition: AutomationCondition;
+  triggerPrice: number;
+  side: AutomationSide;
+  quantity: number;
+  orderType: AutomationOrderType;
+  /** @nullable */
+  limitPrice?: number | null;
+  broker: AutomationBroker;
+  status: AutomationStatus;
+  /** @nullable */
+  firedAt?: string | null;
+  createdAt: string;
+}
+
+export type AutomationInputCondition = typeof AutomationInputCondition[keyof typeof AutomationInputCondition];
+
+
+export const AutomationInputCondition = {
+  gte: 'gte',
+  lte: 'lte',
+} as const;
+
+export type AutomationInputSide = typeof AutomationInputSide[keyof typeof AutomationInputSide];
+
+
+export const AutomationInputSide = {
+  buy: 'buy',
+  sell: 'sell',
+} as const;
+
+export type AutomationInputOrderType = typeof AutomationInputOrderType[keyof typeof AutomationInputOrderType];
+
+
+export const AutomationInputOrderType = {
+  market: 'market',
+  limit: 'limit',
+} as const;
+
+export type AutomationInputBroker = typeof AutomationInputBroker[keyof typeof AutomationInputBroker];
+
+
+export const AutomationInputBroker = {
+  paper: 'paper',
+  alpaca: 'alpaca',
+  coinbase: 'coinbase',
+  binance: 'binance',
+  kraken: 'kraken',
+  bybit: 'bybit',
+} as const;
+
+export interface AutomationInput {
+  symbol: string;
+  condition: AutomationInputCondition;
+  triggerPrice: number;
+  side: AutomationInputSide;
+  quantity: number;
+  orderType?: AutomationInputOrderType;
+  limitPrice?: number;
+  broker?: AutomationInputBroker;
+}
+
 export type ListAlpacaOrdersParams = {
 limit?: number;
 };

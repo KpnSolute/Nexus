@@ -4,3 +4,5 @@
 - [bcrypt native builds on Replit](bcrypt-native.md) — bcrypt requires native build approval (pnpm approve-builds); use bcryptjs instead for zero-friction pure-JS password hashing.
 - [WebSocket proxy routing](ws-proxy-routing.md) — /ws must be added to the API server artifact.toml paths array or the proxy silently drops WebSocket connections.
 - [Kraken data source](kraken-data-source.md) — market data via Kraken public API (no key); symbol format BTC-USDT in app, maps to Kraken internals; 13 pairs active.
+- [Workspace composite tsconfig rebuild](composite-tsconfig-rebuild.md) — lib/db and lib/api-client-react use composite+emitDeclarationOnly; run `npx tsc -p tsconfig.json` in each after schema changes or the API server reports "has no exported member" for new exports.
+- [Multi-broker architecture](multi-broker-arch.md) — 4 broker connectors (Coinbase CDP/ES256, Binance HMAC-SHA256, Kraken HMAC-SHA512 nonce, Bybit HMAC-SHA256); broker-factory.ts dispatches; paper mode routes all orders to local tradesTable; automation engine lives in websocket.ts, fires on every Kraken price tick.

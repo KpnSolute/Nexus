@@ -1,13 +1,15 @@
 import { Router, type IRouter } from "express";
-import healthRouter   from "./health";
-import authRouter     from "./auth";
-import marketsRouter  from "./markets";
-import watchlistRouter from "./watchlist";
-import tradesRouter   from "./trades";
-import portfolioRouter from "./portfolio";
-import accountsRouter from "./accounts";
-import settingsRouter from "./settings";
-import alpacaRouter   from "./alpaca";
+import healthRouter      from "./health";
+import authRouter        from "./auth";
+import marketsRouter     from "./markets";
+import watchlistRouter   from "./watchlist";
+import tradesRouter      from "./trades";
+import portfolioRouter   from "./portfolio";
+import accountsRouter    from "./accounts";
+import settingsRouter    from "./settings";
+import alpacaRouter      from "./alpaca";
+import brokerRouter      from "./broker";
+import automationsRouter from "./automations";
 
 const router: IRouter = Router();
 
@@ -20,5 +22,7 @@ router.use(portfolioRouter);
 router.use(accountsRouter);
 router.use(settingsRouter);
 router.use(alpacaRouter);
+router.use(brokerRouter);
+router.use(automationsRouter);
 
 export default router;

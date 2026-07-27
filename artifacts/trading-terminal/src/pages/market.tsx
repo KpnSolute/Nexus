@@ -6,6 +6,7 @@ import {
   useGetMarketSignals,
   useCreateTrade,
   usePlaceAlpacaOrder,
+  usePlaceBrokerOrder,
   useListAccounts,
   getListTradesQueryKey,
   getGetPortfolioSummaryQueryKey,
@@ -13,12 +14,15 @@ import {
   getListAlpacaOrdersQueryKey,
   getListAlpacaPositionsQueryKey,
   getGetAlpacaAccountQueryKey,
+  getGetBrokerAccountQueryKey,
+  getGetBrokerOrdersQueryKey,
+  getGetBrokerPositionsQueryKey,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Activity, TrendingUp, TrendingDown, Minus, BarChart2, Zap, X } from 'lucide-react';
+import { Activity, TrendingUp, TrendingDown, Minus, BarChart2, Zap, X, ChevronDown } from 'lucide-react';
 import { cn, formatPrice, formatNumber } from '@/lib/utils';
 import { ComposedChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
@@ -80,11 +84,25 @@ export default function Market() {
   
   const createTrade = useCreateTrade();
   const placeAlpaca = usePlaceAlpacaOrder();
+  const placeBroker = usePlaceBrokerOrder();
   const { data: accounts } = useListAccounts();
+
+  // All active broker accounts (for selector)
+  const activeAccounts = accounts?.filter(a => a.status === 'active') ?? [];
+  const [selectedBroker, setSelectedBroker] = useState<string>('paper');
+  // Auto-select first connected broker if any
+  useEffect(() => {
+    if (activeAccounts.length > 0 && selectedBroker === 'paper') {
+      setSelectedBroker(activeAccounts[0].exchange);
+    }
+  }, [activeAccounts.length]);
 
   const alpacaAccount = accounts?.find(a => a.exchange === 'alpaca' && a.status === 'active');
   const alpacaMode    = alpacaAccount ? (alpacaAccount as any).mode as string : null;
-  const usingAlpaca   = !!alpacaAccount;
+  const usingAlpaca   = selectedBroker === 'alpaca' && !!alpacaAccount;
+  const usingBroker   = selectedBroker !== 'paper' && selectedBroker !== 'alpaca' && activeAccounts.some(a => a.exchange === selectedBroker);
+
+  const BROKER_LABELS: Record<string, string> = { paper: 'Paper', alpaca: 'Alpaca', coinbase: 'Coinbase', binance: 'Binance', kraken: 'Kraken', bybit: 'Bybit' };
 
   const [tradeSide, setTradeSide] = useState<'buy' | 'sell'>('buy');
   const [orderSuccess, setOrderSuccess] = useState<string | null>(null);
@@ -120,7 +138,7 @@ export default function Market() {
     if (usingAlpaca) {
       placeAlpaca.mutate({
         data: {
-          symbol,
+          symbol: safeSymbol,
           side:          tradeSide,
           qty:           data.quantity,
           type:          data.price ? 'limit' : 'market',
@@ -129,12 +147,32 @@ export default function Market() {
         }
       }, {
         onSuccess: (order) => {
-          setOrderSuccess(`${tradeSide.toUpperCase()} order submitted · ID ${(order as any).id?.slice(0, 8)}…`);
+          setOrderSuccess(`${tradeSide.toUpperCase()} submitted via Alpaca · ID ${(order as any).id?.slice(0, 8)}…`);
           setTimeout(() => setOrderSuccess(null), 4000);
           reset({ quantity: 0, price: ticker?.price, notes: '' });
           queryClient.invalidateQueries({ queryKey: getListAlpacaOrdersQueryKey() });
           queryClient.invalidateQueries({ queryKey: getListAlpacaPositionsQueryKey() });
           queryClient.invalidateQueries({ queryKey: getGetAlpacaAccountQueryKey() });
+        }
+      });
+    } else if (usingBroker) {
+      placeBroker.mutate({
+        exchange: selectedBroker,
+        data: {
+          symbol: safeSymbol,
+          side: tradeSide,
+          qty: data.quantity,
+          type: data.price ? 'limit' : 'market',
+          limitPrice: data.price,
+        }
+      }, {
+        onSuccess: (order) => {
+          setOrderSuccess(`${tradeSide.toUpperCase()} submitted via ${BROKER_LABELS[selectedBroker]} · ID ${(order as any).id?.slice(0, 8) ?? '…'}`);
+          setTimeout(() => setOrderSuccess(null), 4000);
+          reset({ quantity: 0, price: ticker?.price, notes: '' });
+          queryClient.invalidateQueries({ queryKey: getGetBrokerAccountQueryKey(selectedBroker) });
+          queryClient.invalidateQueries({ queryKey: getGetBrokerOrdersQueryKey(selectedBroker) });
+          queryClient.invalidateQueries({ queryKey: getGetBrokerPositionsQueryKey(selectedBroker) });
         }
       });
     } else {
@@ -159,8 +197,8 @@ export default function Market() {
     }
   };
 
-  const isSubmitting = createTrade.isPending || placeAlpaca.isPending;
-  const submitError  = (createTrade.error || placeAlpaca.error) as any;
+  const isSubmitting = createTrade.isPending || placeAlpaca.isPending || placeBroker.isPending;
+  const submitError  = (createTrade.error || placeAlpaca.error || placeBroker.error) as any;
   const isUp         = ticker && ticker.changePct24h >= 0;
 
   // Stable order book seed (changes only when ticker price changes by >1%)
@@ -454,16 +492,32 @@ export default function Market() {
 
         {/* Trade Panel */}
         <div className="border border-border bg-card flex flex-col flex-1">
-          {/* Alpaca routing badge */}
-          {usingAlpaca && (
-            <div className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold tracking-widest border-b border-border',
-              alpacaMode === 'live' ? 'bg-down/10 text-down' : 'bg-primary/10 text-primary'
-            )}>
-              <Zap className="w-3 h-3" />
-              VIA ALPACA {alpacaMode === 'live' ? 'LIVE' : 'PAPER'}
+          {/* Broker selector */}
+          <div className="border-b border-border px-3 py-2">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-muted-foreground tracking-widest shrink-0">EXECUTE VIA</span>
+              <select
+                value={selectedBroker}
+                onChange={e => setSelectedBroker(e.target.value)}
+                className="flex-1 bg-input border border-border text-foreground px-2 py-1 text-xs focus:outline-none focus:border-primary appearance-none"
+              >
+                <option value="paper">Paper (Local)</option>
+                {activeAccounts.map(a => (
+                  <option key={a.id} value={a.exchange}>
+                    {BROKER_LABELS[a.exchange] ?? a.exchange} — {(a as any).mode === 'live' ? 'LIVE' : 'PAPER'}
+                  </option>
+                ))}
+              </select>
             </div>
-          )}
+            {(usingAlpaca || usingBroker) && (
+              <div className={cn('mt-1.5 flex items-center gap-1 text-[9px] font-bold tracking-widest', selectedBroker === 'alpaca' && alpacaMode === 'live' ? 'text-down' : 'text-primary')}>
+                <Zap className="w-2.5 h-2.5" />
+                {usingAlpaca
+                  ? `ROUTED TO ALPACA ${alpacaMode === 'live' ? 'LIVE' : 'PAPER'}`
+                  : `ROUTED TO ${(BROKER_LABELS[selectedBroker] ?? selectedBroker).toUpperCase()}`}
+              </div>
+            )}
+          </div>
 
           <div className="flex">
             <button
@@ -573,14 +627,14 @@ export default function Market() {
             >
               {isSubmitting
                 ? 'EXECUTING...'
-                : usingAlpaca
-                  ? `${tradeSide.toUpperCase()} VIA ALPACA`
-                  : `PLACE ${tradeSide.toUpperCase()} ORDER`}
+                : (usingAlpaca || usingBroker)
+                  ? `${tradeSide.toUpperCase()} VIA ${(BROKER_LABELS[selectedBroker] ?? selectedBroker).toUpperCase()}`
+                  : `PLACE ${tradeSide.toUpperCase()} (PAPER)`}
             </button>
 
-            {!usingAlpaca && (
+            {selectedBroker === 'paper' && activeAccounts.length === 0 && (
               <p className="text-[10px] text-muted-foreground text-center">
-                Connect Alpaca in Accounts to trade live
+                Connect a broker in Accounts to trade live
               </p>
             )}
           </form>
