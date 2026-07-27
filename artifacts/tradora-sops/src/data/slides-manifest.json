@@ -1,0 +1,42 @@
+[
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "position": 1,
+    "filepath": "src/pages/slides/TradoraSopTitle.tsx",
+    "title": "Tradora SOPs",
+    "description": "Title slide — Standard Operating Procedures overview",
+    "speakerNotes": ""
+  },
+  {
+    "id": "b2c3d4e5-f6a7-8901-bcde-f01234567891",
+    "position": 2,
+    "filepath": "src/pages/slides/TradoraSopAccountSetup.tsx",
+    "title": "Account Setup",
+    "description": "Register, connect a broker, and choose paper or live mode",
+    "speakerNotes": ""
+  },
+  {
+    "id": "c3d4e5f6-a7b8-9012-cdef-012345678912",
+    "position": 3,
+    "filepath": "src/pages/slides/TradoraSopTrades.tsx",
+    "title": "Placing Trades",
+    "description": "Execute trades from the terminal across connected brokers",
+    "speakerNotes": ""
+  },
+  {
+    "id": "d4e5f6a7-b8c9-0123-def0-123456789123",
+    "position": 4,
+    "filepath": "src/pages/slides/TradoraSopAutomations.tsx",
+    "title": "Automation Rules",
+    "description": "Set up price-triggered buy/sell automation rules",
+    "speakerNotes": ""
+  },
+  {
+    "id": "e5f6a7b8-c9d0-1234-ef01-234567891234",
+    "position": 5,
+    "filepath": "src/pages/slides/TradoraSopSecurity.tsx",
+    "title": "Security & Risk Management",
+    "description": "Key security practices and non-custodial guarantees",
+    "speakerNotes": ""
+  }
+]

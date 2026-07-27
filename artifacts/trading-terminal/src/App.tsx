@@ -8,6 +8,7 @@ import { Layout } from '@/components/layout';
 
 import Login from '@/pages/login';
 import Register from '@/pages/register';
+import Landing from '@/pages/landing';
 import Dashboard from '@/pages/dashboard';
 import Market from '@/pages/market';
 import Trades from '@/pages/trades';
@@ -63,6 +64,7 @@ function ProtectedArea() {
 function Router() {
   return (
     <Switch>
+      <Route path="/" component={Landing} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       {/*
